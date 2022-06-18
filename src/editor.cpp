@@ -70,15 +70,19 @@ void drawGui(Camera &camera, std::vector<Entity*> &entities){
     
     {
         ImGui::SetNextWindowPos(ImVec2(0,0));
-        ImGui::SetNextWindowSizeConstraints(ImVec2(100, window_height), ImVec2(window_width / 2.0, window_height));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(200, window_height), ImVec2(window_width / 2.0, window_height));
+        ImGui::Begin("Load Files", NULL, ImGuiWindowFlags_NoMove);
 
-        ImGui::Begin("Global Properties", NULL, ImGuiWindowFlags_NoMove);
-
-        static char level_name[256] = "";
         if (ImGui::Button("Load Molecule File", ImVec2(ImGui::GetWindowWidth()-10, 20))){
             im_file_dialog_type = "loadMol";
             im_file_dialog.SetTypeFilters({".mol"});
             im_file_dialog.SetPwd(std::filesystem::current_path().concat("/data/examples/molfiles"));
+            im_file_dialog.Open();
+        }
+        if (ImGui::Button("Load Protein Database File", ImVec2(ImGui::GetWindowWidth()-10, 20))){
+            im_file_dialog_type = "loadPdb";
+            im_file_dialog.SetTypeFilters({".pdb", ".cif"});
+            im_file_dialog.SetPwd(std::filesystem::current_path().concat("/data/examples/pdb"));
             im_file_dialog.Open();
         }
 
@@ -93,10 +97,18 @@ void drawGui(Camera &camera, std::vector<Entity*> &entities){
         printf("Selected filename: %s\n", im_file_dialog.GetSelected().c_str());
         if(im_file_dialog_type == "loadMol"){
             MolFile molfile;
-            loadMolfile(molfile, p);
+            loadMolFile(molfile, p);
             freeEntities(entities);
 
-            camera.target = createEntitiesFromMolfile(entities, molfile);
+            camera.target = createEntitiesFromMolFile(entities, molfile);
+            updateCamera(camera);
+        } else if(im_file_dialog_type == "loadPdb"){
+            PdbFile pdbfile;
+            loadPdbFile(pdbfile, p);
+
+            freeEntities(entities);
+
+            camera.target = createEntitiesFromPdbFile(entities, pdbfile);
             updateCamera(camera);
         } else {
             fprintf(stderr, "Unhandled imgui file dialog type %s.\n", p.c_str());

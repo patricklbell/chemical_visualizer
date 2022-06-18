@@ -123,10 +123,10 @@ int main() {
     }
 
     MolFile molfile;
-    loadMolfile(molfile, "data/examples/molfiles/caffeine.mol");
+    loadMolFile(molfile, "data/examples/molfiles/caffeine.mol");
    
     std::vector<Entity*> entities;
-    camera.target = createEntitiesFromMolfile(entities, molfile);
+    camera.target = createEntitiesFromMolFile(entities, molfile);
 
     initGui();
     initControls();

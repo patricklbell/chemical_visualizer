@@ -1,7 +1,9 @@
+#include <cstring>
 #include <unordered_map>
 
 #include <glm/glm.hpp>
 #include "assets.hpp"
+#include "glm/detail/func_geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
 
 #include "loader.hpp"
@@ -9,119 +11,15 @@
 #include "graphics.hpp"
 #include "utilities.hpp"
 
-std::unordered_map<std::string, glm::vec3> symbol_to_color_lut = {
-    {"H",  glm::vec3(55,255,255)},
-    {"He", glm::vec3(217,255,255)},
-    {"Li", glm::vec3(204,128,255)},
-    {"Be", glm::vec3(194,255,0)},
-    {"B",  glm::vec3(55,181,181)},
-    {"C",  glm::vec3(44,144,144)},
-    {"N",  glm::vec3(8,80,248)},
-    {"O",  glm::vec3(55,13,13)},
-    {"F",  glm::vec3(44,224,80)},
-    {"Ne", glm::vec3(179,227,245)},
-    {"Na", glm::vec3(171,92,242)},
-    {"Mg", glm::vec3(138,255,0)},
-    {"Al", glm::vec3(191,166,166)},
-    {"Si", glm::vec3(240,200,160)},
-    {"P",  glm::vec3(55,128,0)},
-    {"S",  glm::vec3(55,255,48)},
-    {"Cl", glm::vec3(31,240,31)},
-    {"Ar", glm::vec3(128,209,227)},
-    {"K",  glm::vec3(43,64,212)},
-    {"Ca", glm::vec3(61,255,0)},
-    {"Sc", glm::vec3(230,230,230)},
-    {"Ti", glm::vec3(191,194,199)},
-    {"V",  glm::vec3(66,166,171)},
-    {"Cr", glm::vec3(138,153,199)},
-    {"Mn", glm::vec3(156,122,199)},
-    {"Fe", glm::vec3(224,102,51)},
-    {"Co", glm::vec3(240,144,160)},
-    {"Ni", glm::vec3(80,208,80)},
-    {"Cu", glm::vec3(200,128,51)},
-    {"Zn", glm::vec3(125,128,176)},
-    {"Ga", glm::vec3(194,143,143)},
-    {"Ge", glm::vec3(102,143,143)},
-    {"As", glm::vec3(189,128,227)},
-    {"Se", glm::vec3(255,161,0)},
-    {"Br", glm::vec3(166,41,41)},
-    {"Kr", glm::vec3(92,184,209)},
-    {"Rb", glm::vec3(112,46,176)},
-    {"Sr", glm::vec3(0,255,0)},
-    {"Y",  glm::vec3(48,255,255)},
-    {"Zr", glm::vec3(148,224,224)},
-    {"Nb", glm::vec3(115,194,201)},
-    {"Mo", glm::vec3(84,181,181)},
-    {"Tc", glm::vec3(59,158,158)},
-    {"Ru", glm::vec3(36,143,143)},
-    {"Rh", glm::vec3(10,125,140)},
-    {"Pd", glm::vec3(0,105,133)},
-    {"Ag", glm::vec3(192,192,192)},
-    {"Cd", glm::vec3(255,217,143)},
-    {"In", glm::vec3(166,117,115)},
-    {"Sn", glm::vec3(102,128,128)},
-    {"Sb", glm::vec3(158,99,181)},
-    {"Te", glm::vec3(212,122,0)},
-    {"I",  glm::vec3(48,0,148)},
-    {"Xe", glm::vec3(66,158,176)},
-    {"Cs", glm::vec3(87,23,143)},
-    {"Ba", glm::vec3(0,201,0)},
-    {"La", glm::vec3(112,212,255)},
-    {"Ce", glm::vec3(255,255,199)},
-    {"Pr", glm::vec3(217,255,199)},
-    {"Nd", glm::vec3(199,255,199)},
-    {"Pm", glm::vec3(163,255,199)},
-    {"Sm", glm::vec3(143,255,199)},
-    {"Eu", glm::vec3(97,255,199)},
-    {"Gd", glm::vec3(69,255,199)},
-    {"Tb", glm::vec3(48,255,199)},
-    {"Dy", glm::vec3(31,255,199)},
-    {"Ho", glm::vec3(0,255,156)},
-    {"Er", glm::vec3(0,230,117)},
-    {"Tm", glm::vec3(0,212,82)},
-    {"Yb", glm::vec3(0,191,56)},
-    {"Lu", glm::vec3(0,171,36)},
-    {"Hf", glm::vec3(77,194,255)},
-    {"Ta", glm::vec3(77,166,255)},
-    {"W",  glm::vec3(3,148,214)},
-    {"Re", glm::vec3(38,125,171)},
-    {"Os", glm::vec3(38,102,150)},
-    {"Ir", glm::vec3(23,84,135)},
-    {"Pt", glm::vec3(208,208,224)},
-    {"Au", glm::vec3(255,209,35)},
-    {"Hg", glm::vec3(184,184,208)},
-    {"Tl", glm::vec3(166,84,77)},
-    {"Pb", glm::vec3(87,89,97)},
-    {"Bi", glm::vec3(158,79,181)},
-    {"Po", glm::vec3(171,92,0)},
-    {"At", glm::vec3(117,79,69)},
-    {"Rn", glm::vec3(66,130,150)},
-    {"Fr", glm::vec3(66,0,102)},
-    {"Ra", glm::vec3(0,125,0)},
-    {"Ac", glm::vec3(112,171,250)},
-    {"Th", glm::vec3(0,186,255)},
-    {"Pa", glm::vec3(0,161,255)},
-    {"U",  glm::vec3(0,143,255)},
-    {"Np", glm::vec3(0,128,255)},
-    {"Pu", glm::vec3(0,107,255)},
-    {"Am", glm::vec3(84,92,242)},
-    {"Cm", glm::vec3(120,92,227)},
-    {"Bk", glm::vec3(138,79,227)},
-    {"Cf", glm::vec3(161,54,212)},
-    {"Es", glm::vec3(179,31,212)},
-    {"Fm", glm::vec3(179,31,186)},
-    {"Md", glm::vec3(179,13,166)}
-};
-
-void loadMolfile(MolFile &data, std::string path){
+void loadMolFile(MolFile &data, std::string path){
     FILE *f;
     f=fopen(path.c_str(), "r");
     if (!f) {
-        fprintf(stderr, "Error in reading mesh file %s.\n", path.c_str());
+        fprintf(stderr, "Error in reading mol file %s.\n", path.c_str());
         return;
     }
 
-    printf("----------------Loading Molecule File %s----------------\n", path.c_str());
+    printf("----------------Loading Mol File %s----------------\n", path.c_str());
 
     fgets(data.title, 80, f);
     printf("Title: %s\n", data.title);
@@ -158,26 +56,82 @@ void loadMolfile(MolFile &data, std::string path){
     }
 }
 
-glm::vec3 createEntitiesFromMolfile(std::vector<Entity*> &entities, MolFile &data){
-    static const float sphere_r = 0.2;
-    static const float cylinder_r = 0.035;
-    static const float bond_gap_r = 0.08;
-    //static const float cylinder_offset = std::sqrt(sphere_r*sphere_r - cylinder_r*cylinder_r);
-    
+static const float sphere_r = 0.6;
+static const float cylinder_r = 0.035;
+static const float bond_gap_r = 0.08;
+
+glm::vec3 getColorFromSymbol(std::string symbol) {
+    auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
+    if(color_1_lu == symbol_to_color_lut.end()) return glm::normalize(glm::vec3(1.0));
+    else                                        return glm::normalize(color_1_lu->second);
+}
+
+void createSingleBondEntities(glm::vec3 &pos_1, glm::vec3 &col_1, glm::vec3 &pos_2, glm::vec3 &col_2, std::vector<Entity*> &entities) {
+    auto delta = pos_2 - pos_1;
+    auto distance = glm::length(delta); 
+
+    auto m_e_1 = new MeshEntity(entities.size());
+    auto m_e_2 = new MeshEntity(entities.size() + 1);
+    m_e_1->mesh = &graphics::cylinder;
+    m_e_2->mesh = &graphics::cylinder;
+
+    m_e_1->albedo = col_1;
+    m_e_2->albedo = col_2;
+
+    m_e_1->position = pos_1;
+    m_e_2->position = pos_2;
+
+    scaleMat3(m_e_1->scale, glm::vec3(distance/2.0,  cylinder_r, cylinder_r));
+    scaleMat3(m_e_2->scale, glm::vec3(distance/2.0,  cylinder_r, cylinder_r));
+
+    m_e_1->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
+    m_e_2->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0), -delta);
+
+    entities.push_back(m_e_1);
+    entities.push_back(m_e_2);
+
+    auto m_e = new MeshEntity(entities.size());
+    m_e->mesh = &graphics::cylinder;
+}
+
+void createDoubleBondEntities(glm::vec3 &pos_1, glm::vec3 &col_1, glm::vec3 &pos_2, glm::vec3 &col_2, std::vector<Entity*> &entities) {
+    auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    for(int j = 0; j < 2; ++j){
+        auto offset_1 = pos_1 + bond_gap_r*v_offset;
+        auto offset_2 = pos_2 + bond_gap_r*v_offset;
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities);
+        v_offset *= -1.0;
+    }
+}
+
+void createTripleBondEntities(glm::vec3 &pos_1, glm::vec3 &col_1, glm::vec3 &pos_2, glm::vec3 &col_2, std::vector<Entity*> &entities) {
+    auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    for(int j = 0; j < 2; ++j){
+        auto offset_1 = pos_1 + bond_gap_r*v_offset;
+        auto offset_2 = pos_2 + bond_gap_r*v_offset;
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities);
+        v_offset = v_offset*glm::angleAxis((float)(2.0/3.0 * PI), glm::normalize(pos_2 - pos_1));
+    }
+}
+
+void createAtomEntity(glm::vec3 &pos, glm::vec3 &col, std::vector<Entity*> &entities) {
+    auto m_e = new MeshEntity(entities.size());
+
+    m_e->albedo = col;
+    m_e->mesh = &graphics::sphere;
+    m_e->scale = glm::mat3(sphere_r);
+    m_e->position = pos;
+
+    entities.push_back(m_e);
+}
+
+glm::vec3 createEntitiesFromMolFile(std::vector<Entity*> &entities, MolFile &data){
     auto center = glm::vec3(0.0);
     entities.reserve(entities.size() + data.num_atoms);
     for(int i = 0; i < data.num_atoms; ++i){
         auto &a = data.atoms[i];
-        auto m_e = new MeshEntity(i);
-
-        m_e->albedo = glm::normalize(symbol_to_color_lut[std::string(a.symbol)]);
-
-        m_e->mesh = &graphics::sphere;
-        m_e->scale = glm::mat3(sphere_r);
-        m_e->position = a.position;
-
-        entities.push_back(m_e);
-
+        auto color = getColorFromSymbol(a.symbol);
+        createAtomEntity(a.position, color, entities);
         center += a.position;
     }
     center /= data.num_atoms;
@@ -222,98 +176,25 @@ glm::vec3 createEntitiesFromMolfile(std::vector<Entity*> &entities, MolFile &dat
         auto atom_1 = data.atoms[b.atom_1_index];
         auto atom_2 = data.atoms[b.atom_2_index];
 
+        auto color_1 = getColorFromSymbol(atom_1.symbol);
+        auto color_2 = getColorFromSymbol(atom_2.symbol);
+
         printf("Bond %d --> %d with type %u\n", b.atom_1_index, b.atom_2_index, type);
         switch(type){
             case MolBondType::SINGLE:
             {
-                auto delta = atom_2.position - atom_1.position;
-                auto distance = glm::length(delta); 
-
-                auto m_e_1 = new MeshEntity(entities.size());
-                auto m_e_2 = new MeshEntity(entities.size() + 1);
-                m_e_1->mesh = &graphics::cylinder;
-                m_e_2->mesh = &graphics::cylinder;
-
-                m_e_1->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_1.symbol)]);
-                m_e_2->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_2.symbol)]);
-
-                m_e_1->position = atom_1.position;
-                m_e_2->position = atom_2.position;
-
-                scaleMat3(m_e_1->scale, glm::vec3(distance/2.0,  cylinder_r, cylinder_r));
-                scaleMat3(m_e_2->scale, glm::vec3(distance/2.0,  cylinder_r, cylinder_r));
-
-                m_e_1->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
-                m_e_2->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0), -delta);
-
-                entities.push_back(m_e_1);
-                entities.push_back(m_e_2);
-
-                auto m_e = new MeshEntity(entities.size());
-                m_e->mesh = &graphics::cylinder;
+                createSingleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities);
                 break;
             }
             case MolBondType::DOUBLE:
             {
 
-                auto delta = atom_2.position - atom_1.position;
-                auto distance = glm::length(delta); 
-                auto v_offset = anyPerpendicular(delta);
-
-                for(int j = 0; j < 2; ++j){
-                    auto m_e_1 = new MeshEntity(entities.size());
-                    auto m_e_2 = new MeshEntity(entities.size() + 1);
-                    m_e_1->mesh = &graphics::cylinder;
-                    m_e_2->mesh = &graphics::cylinder;
-
-                    m_e_1->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_1.symbol)]);
-                    m_e_2->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_2.symbol)]);
-
-                    m_e_1->position = atom_1.position + bond_gap_r*v_offset;
-                    m_e_2->position = atom_2.position + bond_gap_r*v_offset;
-
-                    scaleMat3(m_e_1->scale, glm::vec3(distance/2.0, cylinder_r, cylinder_r));
-                    scaleMat3(m_e_2->scale, glm::vec3(distance/2.0, cylinder_r, cylinder_r));
-
-                    m_e_1->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
-                    m_e_2->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0), -delta);
-
-                    v_offset *= -1.0;
-
-                    entities.push_back(m_e_1);
-                    entities.push_back(m_e_2);
-                }
+                createDoubleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities);
                 break;
             }
             case MolBondType::TRIPLE:
             {
-                auto delta = atom_2.position - atom_1.position;
-                auto distance = glm::length(delta); 
-                auto v_offset = glm::normalize(anyPerpendicular(delta));
-
-                for(int j = 0; j < 3; ++j){
-                    auto m_e_1 = new MeshEntity(entities.size());
-                    auto m_e_2 = new MeshEntity(entities.size() + 1);
-                    m_e_1->mesh = &graphics::cylinder;
-                    m_e_2->mesh = &graphics::cylinder;
-
-                    m_e_1->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_1.symbol)]);
-                    m_e_2->albedo = glm::normalize(symbol_to_color_lut[std::string(atom_2.symbol)]);
-
-                    m_e_1->position = atom_1.position + bond_gap_r*v_offset;
-                    m_e_2->position = atom_2.position + bond_gap_r*v_offset;
-
-                    scaleMat3(m_e_1->scale, glm::vec3(distance/2.0, cylinder_r, cylinder_r));
-                    scaleMat3(m_e_2->scale, glm::vec3(distance/2.0, cylinder_r, cylinder_r));
-
-                    m_e_1->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
-                    m_e_2->rotation = quatAlignAxisToDirection(glm::vec3(1,0,0), -delta);
-
-                    v_offset = v_offset*glm::angleAxis((float)(2.0/3.0 * PI), delta);
-
-                    entities.push_back(m_e_1);
-                    entities.push_back(m_e_2);
-                }
+                createTripleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities);
                 break;
             }
             default:
@@ -321,5 +202,90 @@ glm::vec3 createEntitiesFromMolfile(std::vector<Entity*> &entities, MolFile &dat
                 break;
         }
     }
+    return center;
+}
+
+
+void loadPdbFile(PdbFile &data, std::string path){
+    FILE *f;
+    f=fopen(path.c_str(), "r");
+    if (!f) {
+        fprintf(stderr, "Error in reading pdb file %s.\n", path.c_str());
+        return;
+    }
+
+    printf("----------------Loading Pdb File %s----------------\n", path.c_str());
+
+    // Assumes line is less than 1024 characters
+    char line[1024];
+    char record_name[7];
+
+    data.polymer_models.emplace_back();
+    const int default_polymer = data.polymer_models.size() - 1;
+    int current_polymer = default_polymer;
+    while(1) {
+        if(fgets(line, 1024, f) == NULL) break;
+
+        int len = strlen(line);
+        if(len >= 6) {
+            memcpy(record_name, &line[0], 6);
+            record_name[6] = '\0';
+
+            if(!strcmp(record_name, "MODEL")) {
+                auto &model = data.polymer_models.emplace_back();
+                sscanf(line, "MODEL %d", &model.serial);
+                current_polymer = model.serial;
+                printf("MODEL %d\n", current_polymer);
+            } else if(!strcmp(record_name, "HETATM") || !strcmp(record_name, "ATOM  ")) {
+                PdbAtom *atom;
+                if(!strcmp(record_name, "HETATM") || current_polymer == -1) {
+                    printf("HETATM: ");
+                    atom = &data.heterogen_model.atoms.emplace_back();
+                } else {
+                    printf("ATOM  : ");
+                    atom = &data.polymer_models[current_polymer].atoms.emplace_back();
+                }
+                sscanf(line, "HETATM%5d", &atom->serial);
+                printf("Serial %d ", atom->serial);
+
+                char pos_buf[25];
+                memcpy(pos_buf, &line[30], 24);
+                pos_buf[24] = '\0';
+                sscanf(pos_buf, "%f %f %f", &atom->position.x, &atom->position.y, &atom->position.z);
+
+                printf("Position %f %f %f ", atom->position.x, atom->position.y, atom->position.z);
+
+                sscanf(&line[76], "%2s", atom->symbol);
+                atom->symbol[1] = tolower(atom->symbol[1]);
+                atom->symbol[2] = '\0';
+                printf("Symbol %s\n", atom->symbol);
+            } else if(!strcmp(record_name, "ENDMDL")) {
+                current_polymer = default_polymer;
+            }
+        }
+    }
+}
+
+glm::vec3 createEntitiesFromPdbFile(std::vector<Entity*> &entities, PdbFile &data){
+    auto center = glm::vec3(0.0);
+
+    entities.reserve(entities.size() + data.heterogen_model.atoms.size());
+    for(auto &a : data.heterogen_model.atoms) {
+        auto color = getColorFromSymbol(a.symbol);
+        createAtomEntity(a.position, color, entities);
+        center += a.position;
+    }
+    center /= data.heterogen_model.atoms.size();
+
+    for(auto &m : data.polymer_models) {
+        entities.reserve(entities.size() + m.atoms.size());
+        for(auto &a : m.atoms) {
+            auto color = getColorFromSymbol(a.symbol);
+            createAtomEntity(a.position, color, entities);
+            center += a.position;
+        }
+        center /= m.atoms.size();
+    }
+
     return center;
 }

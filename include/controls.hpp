@@ -11,7 +11,7 @@
 void windowScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 struct Camera {
-    const float near_plane = 1.0f, far_plane = 100.0f;
+    const float near_plane = 0.5f, far_plane = 300.0f;
     const glm::vec3 up = glm::vec3(0,1,0);
     glm::vec3 position;
     glm::vec3 target;
