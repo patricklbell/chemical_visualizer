@@ -179,6 +179,8 @@ struct PdbResidue {
     char i_code;
 
     std::vector<int> atom_ids;
+    // @note LINK should guaranteed that atom_name is unique in residue
+    std::unordered_map<std::string, int> atom_name_id; // atom_name -> serial
 
     // Used for constructing secondary structures, not inherent to residue
     // assume coil as pdb doesn't specify
@@ -211,6 +213,17 @@ struct PdbModel {
 struct PdbFile {
     // Each model represents the same structure, mainly for NMR entries
     std::vector<PdbModel> models;
+};
+
+// Approximates plane of residue with peptide bonds
+struct PeptidePlane {
+    PdbResidue *residue_1;
+    PdbResidue *residue_2;
+
+    glm::vec3 position, normal, forward, right;
+
+    // Peptide bond could be flipped relative to previous residue
+    bool flipped = false;
 };
 
 void loadPdbFile(PdbFile &data, std::string path);
