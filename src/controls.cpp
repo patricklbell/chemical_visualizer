@@ -94,8 +94,9 @@ void handleControls(Camera &camera, float dt) {
             auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
             auto delta = (float)delta_mouse_position.x*camera_right - (float)delta_mouse_position.y*camera.up;
-            camera.position -= 0.01f*delta;
-            camera.target   -= 0.01f*delta;
+            auto d = glm::length(camera.position - camera.target);
+            camera.position -= 0.003f*d*delta;
+            camera.target   -= 0.003f*d*delta;
 
             updateCameraView(camera);
         }

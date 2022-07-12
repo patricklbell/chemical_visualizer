@@ -76,13 +76,13 @@ void drawGui(Camera &camera, std::vector<Entity*> &entities){
         if (ImGui::Button("Load Molecule File", ImVec2(ImGui::GetWindowWidth()-10, 20))){
             im_file_dialog_type = "loadMol";
             im_file_dialog.SetTypeFilters({".mol"});
-            im_file_dialog.SetPwd(std::filesystem::current_path().concat("/data/examples/molfiles"));
+            im_file_dialog.SetPwd("data/examples/molfiles");
             im_file_dialog.Open();
         }
         if (ImGui::Button("Load Protein Database File", ImVec2(ImGui::GetWindowWidth()-10, 20))){
             im_file_dialog_type = "loadPdb";
             im_file_dialog.SetTypeFilters({".pdb", ".cif"});
-            im_file_dialog.SetPwd(std::filesystem::current_path().concat("/data/examples/pdb"));
+            im_file_dialog.SetPwd("data/examples/pdb");
             im_file_dialog.Open();
         }
 

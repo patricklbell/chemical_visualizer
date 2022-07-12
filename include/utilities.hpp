@@ -20,5 +20,11 @@ float closestDistanceBetweenLines(const glm::vec3 &l1_origin, const glm::vec3 &l
 float closestDistanceBetweenLineCircle(const glm::vec3 &line_origin, const glm::vec3 &line_direction, const glm::vec3 &circle_center, const glm::vec3 &circle_normal, float circle_radius, glm::vec3& point);
 glm::vec3 anyPerpendicular(const glm::vec3 &v);
 glm::quat quatAlignAxisToDirection(const glm::vec3 &axis, const glm::vec3 &direction);
+int substrSscanf(const char *src, int start, int end, const char *format, void *result);
+void substrString(const char *src, int start, int end, char *result);
+void substrChar(const char *src, int pos, char *result);
+void substrInt(const char *src, int start, int end, int *result);
+void substrFloat(const char *src, int start, int end, float *result);
+glm::vec3 randomColor();
 
 #endif /* ifndef UTILITIES_HPP */

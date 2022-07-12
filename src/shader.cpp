@@ -24,6 +24,9 @@ namespace shader {
     GLuint basic_program;
     struct BasicUniforms basic_uniforms;
 
+    GLuint basic_instanced_program;
+    struct BasicUniforms basic_instanced_uniforms;
+
     std::string glsl_version;
 }
 
@@ -157,6 +160,25 @@ void loadBasicShader(std::string path){
     basic_uniforms.camera_position             = glGetUniformLocation(basic_program, "camera_position");
     basic_uniforms.albedo                      = glGetUniformLocation(basic_program, "albedo");
 }
+
+void loadBasicInstancedShader(std::string path){
+    // Create and compile our GLSL program from the shaders
+    auto tmp = basic_instanced_program;
+    basic_instanced_program = loadShader(path);
+    if(basic_instanced_program == GL_FALSE) {
+        basic_instanced_program = tmp;
+        return;
+    }
+
+    // Grab uniforms to modify during rendering
+    basic_instanced_uniforms.mvp                         = glGetUniformLocation(basic_instanced_program, "mvp");
+    basic_instanced_uniforms.model                       = glGetUniformLocation(basic_instanced_program, "model");
+    basic_instanced_uniforms.sun_color                   = glGetUniformLocation(basic_instanced_program, "sun_color");
+    basic_instanced_uniforms.sun_direction               = glGetUniformLocation(basic_instanced_program, "sun_direction");
+    basic_instanced_uniforms.camera_position             = glGetUniformLocation(basic_instanced_program, "camera_position");
+    basic_instanced_uniforms.albedo                      = glGetUniformLocation(basic_instanced_program, "albedo");
+}
+
 
 void deleteShaderPrograms(){
     glDeleteProgram(basic_program);

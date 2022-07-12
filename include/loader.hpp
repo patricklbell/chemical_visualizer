@@ -63,39 +63,154 @@ void loadMolFile(MolFile &data, std::string path);
 glm::vec3 createEntitiesFromMolFile(std::vector<Entity*> &entities, MolFile &data);
 
 struct PdbAtom {
+    // -1 indicates heterogen_model, otherwise index of model
+    int model_num;
+    bool is_heterogen;
+
     int serial;
-    char symbol[3] = "";
-    //char name[5];
-    //char alternate_location;
-    //char residue_name[5];
-    //int residue_sequence;
-    //char chain_id;
+    char name[5] = "";
+
+    int  res_seq;
+    char res_name[4];
+    char chain_id;
+    char i_code;
+
     glm::fvec3 position; // Orthogonal coordinates in Angstroms
+    
+    char symbol[3] = "";
 };
 
-enum class PdbBondType : unsigned int {
+enum class PdbConnectionType : unsigned int {
     UNKNOWN             = 0,
     SINGLE              = 1,
-    DOUBLE              = 2,
-    TRIPLE              = 3,
+    SINGLE_REDUNDANT    = 2,
+    DOUBLE              = 3,
+    DOUBLE_REDUNDANT    = 4,
+    TRIPLE              = 5,
+    TRIPLE_REDUNDANT    = 6,
 };
 
-struct PdbBond {
-    int atom_1_index;
-    int atom_2_index;
-    PdbBondType type;
+struct PdbConnection {
+    int atom_1_id;
+    int atom_2_id;
+    PdbConnectionType type;
+};
+
+enum class PdbHelixType : unsigned int {
+    RIGHT_HANDED_ALPHA  = 1,
+    RIGHT_HANDED_OMEGA  = 2,
+    RIGHT_HANDED_PI     = 3,
+    RIGHT_HANDED_GAMMA  = 4,
+    RIGHT_HANDED_310    = 5,
+    LEFT_HANDED_ALPHA   = 6,
+    LEFT_HANDED_OMEGA   = 7,
+    LEFT_HANDED_GAMMA   = 8,
+    HELIX_27            = 9,
+    POLYPROLINE         = 10,
+};
+
+enum class PdbResidueType : unsigned int {
+    UNKNOWN = 0,
+    COIL    = 1,
+    HELIX   = 2,
+    STRAND  = 3,
+};
+
+struct PdbHelix {
+    int serial;
+    char id_code[4];
+
+    int  init_seq_num;
+    char init_res_name[4];
+    char init_chain_id;
+    char init_i_code;
+
+    int  end_seq_num;
+    char end_res_name[4];
+    char end_chain_id;
+    char end_i_code;
+
+    int seq_length;
+
+    PdbHelixType type;
+};
+
+struct PdbStrand {
+    int strand_id;
+    int sense;
+
+    int  init_seq_num;
+    char init_res_name[4];
+    char init_chain_id;
+    char init_i_code;
+
+    int  end_seq_num;
+    char end_res_name[4];
+    char end_chain_id;
+    char end_i_code;
+
+    // If first strand cur and prev ignored
+    bool is_first;
+
+    char cur_atom_name[5];
+    int  cur_seq_num;
+    char cur_res_name[4];
+    char cur_chain_id;
+    char cur_i_code;
+
+    char prev_atom_name[5];
+    int  prev_seq_num;
+    char prev_res_name[4];
+    char prev_chain_id;
+    char prev_i_code;
+};
+
+struct PdbSheet {
+    char sheet_id[4];
+    std::unordered_map<int, PdbStrand> strands; // strand_id -> strand
+
+    int num_strands;
+};
+
+struct PdbResidue {
+    int  res_seq;
+    char res_name[4];
+    char chain_id;
+    char i_code;
+
+    std::vector<int> atom_ids;
+
+    // Used for constructing secondary structures, not inherent to residue
+    // assume coil as pdb doesn't specify
+    PdbResidueType type = PdbResidueType::COIL;
+};
+
+// A contiguous sequence of residues (in secondary structures) which form one mesh
+struct PdbChain {
+    char chain_id;
+    std::vector<PdbResidue *> residues;
 };
 
 struct PdbModel {
     int serial = 0;
-    std::vector<PdbAtom> atoms;
-    std::vector<PdbBond> bonds;
+
+    // Primary structures
+    std::unordered_map<int,  PdbAtom> atoms;  // serial -> atom
+    std::unordered_map<long, PdbConnection> connections; // hash(serial1, serial2) -> bond
+
+    // @note c++ doesn't seem to pre define char hash function
+    std::unordered_map<int, PdbChain> chains; // chain_id -> chain
+    
+    // Secondary structures
+    std::unordered_map<int, PdbHelix> helices; // serial -> helix // @note this may cause collisions?
+    std::unordered_map<std::string, PdbSheet> sheets; // sheet_id -> sheet
+    
+    std::unordered_map<int, PdbResidue> residues; // res_seq -> residue
 };
 
 struct PdbFile {
-    PdbModel heterogen_model;
-
-    std::vector<PdbModel> polymer_models;
+    // Each model represents the same structure, mainly for NMR entries
+    std::vector<PdbModel> models;
 };
 
 void loadPdbFile(PdbFile &data, std::string path);

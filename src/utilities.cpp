@@ -1,3 +1,4 @@
+#include <cstring>
 #include <limits>
 #include <vector>
 #include <cstdint>
@@ -257,4 +258,38 @@ glm::quat quatAlignAxisToDirection(const glm::vec3 &axis, const glm::vec3 &direc
         float s = std::sqrt(glm::dot(axis, axis) * glm::dot(direction, direction)) + d;
         return glm::normalize(glm::quat(s, rot_axis));
     }
+}
+
+int substrSscanf(const char *src, int start, int end, const char *format, void *result) {
+    char *substr = (char*)malloc(end - start + 2);
+    memcpy(substr, &src[start], end - start + 1);
+    substr[end - start + 1] = '\0';
+
+    int matches = sscanf(substr, format, result);
+
+    free(substr);
+    return matches;
+}
+
+// @note relies on end - start + 2 minimum chars allocated for result
+void substrString(const char *src, int start, int end, char *result) {
+    memcpy(result, &src[start], end - start + 1);
+    result[end - start + 1] = '\0';
+}
+
+// @note relies on end - start + 2 minimum chars allocated for result
+void substrChar(const char *src, int pos, char *result) {
+    (*result) = src[pos];
+}
+
+void substrInt(const char *src, int start, int end, int *result) {
+    substrSscanf(src, start, end, " %d", result);
+}
+
+void substrFloat(const char *src, int start, int end, float *result) {
+    substrSscanf(src, start, end, " %f", result);
+}
+
+glm::vec3 randomColor() {
+    return glm::normalize(glm::vec3(rand(), rand(), rand()));
 }

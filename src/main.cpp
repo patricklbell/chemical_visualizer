@@ -110,11 +110,13 @@ int main() {
 
     // Load shaders
     loadBasicShader("data/shaders/basic.gl");
+    loadBasicInstancedShader("data/shaders/basic_instanced.gl");
 
     // Map for last update time for hotswaping files
     std::filesystem::file_time_type empty_file_time;
     std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
         {"data/shaders/basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
+        {"data/shaders/basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
     };
     // Fill in with correct file time
     for (auto &pair : shader_update_times) {
@@ -144,8 +146,8 @@ int main() {
             updateCamera(camera);
         }
 
-        // Hotswap shader files
-        if(current_time - last_filesystem_hotswap_check >= 1.0){
+        // @developer Hotswap shader files
+        if(current_time - last_filesystem_hotswap_check >= 2.0){
             last_filesystem_hotswap_check = current_time;
             for (auto &pair : shader_update_times) {
                 if(pair.second.second != std::filesystem::last_write_time(pair.first)){
@@ -153,6 +155,9 @@ int main() {
                     switch (pair.second.first) {
                         case shader::TYPE::BASIC_SHADER:
                             loadBasicShader(pair.first.c_str());
+                            break;
+                        case shader::TYPE::BASIC_INSTANCED_SHADER:
+                            loadBasicInstancedShader(pair.first.c_str());
                             break;
                         default:
                             break;
@@ -178,7 +183,7 @@ int main() {
             err = gluErrorString(code);
             fprintf(stderr, "<--------------------OpenGL ERROR-------------------->\n%s\n", err);
         }
-    } // Check if the ESC key was pressed or the window was closed
+    } // exit if the ESC key was pressed or the window was closed
     while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && glfwWindowShouldClose(window) == 0 );
 
     deleteShaderPrograms();    
