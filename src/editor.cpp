@@ -62,7 +62,7 @@ void initGui(){
     ImGui_ImplOpenGL3_Init(shader::glsl_version.c_str());
 }
 
-void drawGui(Camera &camera, std::vector<Entity*> &entities){
+void drawGui(Camera &camera, Entities &entities){
     // Start the Dear ImGui frame;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -98,16 +98,15 @@ void drawGui(Camera &camera, std::vector<Entity*> &entities){
         if(im_file_dialog_type == "loadMol"){
             MolFile molfile;
             loadMolFile(molfile, p);
-            freeEntities(entities);
 
+            entities.clear();
             camera.target = createEntitiesFromMolFile(entities, molfile);
             updateCamera(camera);
         } else if(im_file_dialog_type == "loadPdb"){
             PdbFile pdbfile;
             loadPdbFile(pdbfile, p);
 
-            freeEntities(entities);
-
+            entities.clear();
             camera.target = createEntitiesFromPdbFile(entities, pdbfile);
             updateCamera(camera);
         } else {

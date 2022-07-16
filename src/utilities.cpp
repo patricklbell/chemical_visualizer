@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <vector>
@@ -28,6 +29,18 @@ void scaleMat3(glm::mat3 &mat, glm::vec3 scl) {
 
 glm::mat4x4 createModelMatrix(const glm::vec3 &pos, const glm::quat &rot, const glm::mat3x3 &scl){
     return glm::translate(glm::mat4x4(1.0), pos) * glm::mat4_cast(rot) * glm::mat4x4(scl);
+}
+
+inline glm::vec3 toModelSpace(const glm::vec3 &v) {
+    return glm::vec3(-v.x, -v.y, v.z);
+}
+
+inline glm::vec3 calculateTriangleNormalCCW(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3) {
+    return glm::normalize(glm::cross(p2 - p1, p3 - p1));
+}
+
+inline void printVector(const glm::vec3 &v) {
+    printf("x: %9.6f, y: %9.6f, z: %9.6f\n", v.x, v.y, v.z);
 }
 
 // https://cadxfem.org/inf/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
@@ -95,13 +108,13 @@ bool rayIntersectsTriangle(const glm::vec3 vertices[3], const glm::vec3 &ray_ori
     return true;
 }
 
-bool rayIntersectsMesh(Mesh *mesh, const glm::mat4x4 &transform, const Camera &camera, const glm::vec3 &ray_origin, const glm::vec3 &ray_direction, glm::vec3 &collision_point, glm::vec3 &normal){
+bool rayIntersectsMesh(const Mesh &mesh, const glm::mat4x4 &transform, const Camera &camera, const glm::vec3 &ray_origin, const glm::vec3 &ray_direction, glm::vec3 &collision_point, glm::vec3 &normal){
     bool flag = false;
     float min_collision_distance;
-    for(int j = 0; j < mesh->num_indices; j+=3){
-        const auto p1 = mesh->vertices[mesh->indices[j]];
-        const auto p2 = mesh->vertices[mesh->indices[j+1]];
-        const auto p3 = mesh->vertices[mesh->indices[j+2]];
+    for(int j = 0; j < mesh.num_indices; j+=3){
+        const auto p1 = mesh.vertices[mesh.indices[j]];
+        const auto p2 = mesh.vertices[mesh.indices[j+1]];
+        const auto p3 = mesh.vertices[mesh.indices[j+2]];
         glm::vec3 triangle[3] = {
             glm::vec3(transform * glm::vec4(p1, 1.0)),
             glm::vec3(transform * glm::vec4(p2, 1.0)),
@@ -115,7 +128,7 @@ bool rayIntersectsMesh(Mesh *mesh, const glm::mat4x4 &transform, const Camera &c
                 min_collision_distance = collision_distance;
                 collision_point = ray_origin + ray_direction*(float)t;
                 // Use uv coordinates and all 3 normals
-                normal = mesh->normals[mesh->indices[j]];
+                normal = mesh.normals[mesh.indices[j]];
             }
         }
     }
@@ -292,4 +305,137 @@ void substrFloat(const char *src, int start, int end, float *result) {
 
 glm::vec3 randomColor() {
     return glm::normalize(glm::vec3(rand(), rand(), rand()));
+}
+
+// http://www.paulbourke.net/miscellaneous/interpolation
+// Cubic interpolation applied independently to each dimension between x1 and x2
+void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, int n, glm::vec3 *curve) {
+    // @note maybe use smoother method
+    glm::vec3 a0, a1, a2, a3;
+    a0 = x3 - x2 - x0 + x1;
+    a1 = x0 - x1 - a0;
+    a2 = x2 - x0;
+    a3 = x1;
+
+    curve[0] = x1;
+    for(int i = 0; i < n - 1; i++) {
+        auto x = glm::vec3((float)i / (n-1));
+        // Component-wise multiplication
+        curve[i+1] = a0*x*x*x + a1*x*x + a2*x +a3;
+    }
+    curve[n-1] = x2;
+}
+
+void createCircularProfile(const int n, glm::vec2 *points, float r=1.0) {
+    for(int i = 0; i < n; i++) {
+        // t : [0, 2π]
+        float t = ((float)i / n) * 2.0 * PI;
+        points[i].x = r*glm::cos(t);
+        points[i].y = r*glm::sin(t);
+    }
+}
+
+// Transforms 2D points onto 3D plane
+void projectPointsOnPlane(int num, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points) {
+    for(int i = 0; i < num; i++){
+        auto &in_p = in_points[i];
+        out_points[i] = u*in_p.x + v*in_p.y + p;
+    }
+}
+
+// @note assumes points lie on a plane i.e a profile
+void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::vec3 *profile, Mesh &mesh, const bool flipped=false) {
+    int vertex_offset = mesh.num_vertices;
+    int index_offset = mesh.num_indices;
+    
+    int &num_triangles = num_points;
+    mesh.num_indices += num_triangles*3;
+    mesh.indices = (unsigned short *)realloc(mesh.indices, sizeof(*mesh.indices)*mesh.num_indices);
+
+    // All normals are the same so we can use indices for all triangles 
+    mesh.num_vertices += num_points + 1;
+    mesh.vertices = (glm::vec3 *)realloc(mesh.vertices, sizeof(*mesh.vertices)*mesh.num_vertices);
+    mesh.normals =  (glm::vec3 *)realloc(mesh.normals,  sizeof(*mesh.normals)*mesh.num_vertices);
+
+    mesh.draw_count[0] += 3*num_triangles;
+
+    mesh.vertices[vertex_offset] = toModelSpace(center_point);
+
+    glm::vec3 n;
+    if(flipped) n = calculateTriangleNormalCCW(center_point, profile[0], profile[1]);
+    else        n = calculateTriangleNormalCCW(center_point, profile[1], profile[0]);
+
+    printf("Normal "); // @debug
+    printVector(n); // @debug
+    for(int i = 0; i < num_triangles; i++) {
+        mesh.vertices[vertex_offset + i + 1] = toModelSpace(profile[i]);
+        mesh.normals [vertex_offset + i + 1] = toModelSpace(n);
+
+        // CCW winding order
+        mesh.indices [index_offset + 3*i] = vertex_offset;
+
+        if(flipped) {
+            mesh.indices [index_offset + 3*i + 1] = vertex_offset + i + 1;
+            mesh.indices [index_offset + 3*i + 2] = vertex_offset + (i + 1) % num_triangles + 1;
+        } else {
+            mesh.indices [index_offset + 3*i + 1] = vertex_offset + (i + 1) % num_triangles + 1;
+            mesh.indices [index_offset + 3*i + 2] = vertex_offset + i + 1;
+        }
+    }
+}
+
+// Save reallocs by doing all splines together
+// @note order of splines and points must be correct
+// @note doesn't recreate vao after modifying mesh
+// surface should be a 2d array of num_splines by num_points_per_spline packed into a 1d array
+void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, glm::vec3 *surface, Mesh &mesh) {
+    auto &npps = num_points_per_spline;
+
+    int vertex_offset = mesh.num_vertices;
+    int index_offset = mesh.num_indices;
+    
+    // Triangles per band * num of bands
+    int num_triangles = 2*(num_points_per_spline - 1)*(num_splines);
+    mesh.num_indices += num_triangles*3;
+    //printf("Realloc indices size %d num %d\n", (int)sizeof(*mesh.indices), mesh.num_indices); // @debug
+    mesh.indices = (unsigned short *)realloc(mesh.indices, sizeof(*mesh.indices)*mesh.num_indices);
+
+    // Since each quad is indexed together num vertices is num quads*4 
+    mesh.num_vertices += 4*(num_points_per_spline - 1)*(num_splines);
+    //printf("Realloc vertices size %d num %d\n", (int)sizeof(*mesh.vertices), mesh.num_vertices); // @debug
+    mesh.vertices = (glm::vec3 *)realloc(mesh.vertices, sizeof(*mesh.vertices)*mesh.num_vertices);
+    mesh.normals =  (glm::vec3 *)realloc( mesh.normals,  sizeof(*mesh.normals)*mesh.num_vertices);
+
+    // @note Assumes everything is one material
+    mesh.draw_count[0] += 3*num_triangles;
+
+    int quad = 0;
+    for(int i = 0; i < num_splines; i++) {
+        for(int j = 0; j < num_points_per_spline - 1; j++) {
+            // CCW winding order
+            auto &p1 = surface[npps*((i+1)%num_splines) + j+1];
+            auto &p2 = surface[npps*((i+1)%num_splines) + j];
+            auto &p3 = surface[npps*(i  ) + j];
+            auto &p4 = surface[npps*(i  ) + j+1];
+            auto n = toModelSpace(calculateTriangleNormalCCW(p1, p2, p3));
+            mesh.vertices[vertex_offset + 4*quad    ] = toModelSpace(p1);
+            mesh.vertices[vertex_offset + 4*quad + 1] = toModelSpace(p2);
+            mesh.vertices[vertex_offset + 4*quad + 2] = toModelSpace(p3);
+            mesh.vertices[vertex_offset + 4*quad + 3] = toModelSpace(p3);
+            mesh.normals [vertex_offset + 4*quad    ] = n;
+            mesh.normals [vertex_offset + 4*quad + 1] = n;
+            mesh.normals [vertex_offset + 4*quad + 2] = n;
+            mesh.normals [vertex_offset + 4*quad + 3] = n;
+
+            mesh.indices [index_offset  + 6*quad    ] = vertex_offset + 4*quad;
+            mesh.indices [index_offset  + 6*quad + 1] = vertex_offset + 4*quad + 1;
+            mesh.indices [index_offset  + 6*quad + 2] = vertex_offset + 4*quad + 2;
+
+            mesh.indices [index_offset  + 6*quad + 3] = vertex_offset + 4*quad + 2;
+            mesh.indices [index_offset  + 6*quad + 4] = vertex_offset + 4*quad + 1;
+            mesh.indices [index_offset  + 6*quad + 5] = vertex_offset + 4*quad + 3;
+
+            quad++;
+        }
+    }
 }

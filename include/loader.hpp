@@ -60,7 +60,7 @@ struct MolFile {
 };
 
 void loadMolFile(MolFile &data, std::string path);
-glm::vec3 createEntitiesFromMolFile(std::vector<Entity*> &entities, MolFile &data);
+glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data);
 
 struct PdbAtom {
     // -1 indicates heterogen_model, otherwise index of model
@@ -227,7 +227,7 @@ struct PeptidePlane {
 };
 
 void loadPdbFile(PdbFile &data, std::string path);
-glm::vec3 createEntitiesFromPdbFile(std::vector<Entity*> &entities, PdbFile &data);
+glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data);
 
 // --------------------------------Color LUTs-------------------------------- //
 

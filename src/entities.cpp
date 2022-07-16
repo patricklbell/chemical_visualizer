@@ -1,18 +1,17 @@
 #include "entities.hpp"
 
-void freeEntity(Entity *e) {
-    switch (e->type) {
-        case MESH_ENTITY:
-            free((MeshEntity*)e);
-            break;
-        default:
-            free(e);
+void Entities::clear() {
+    for(auto &e : mesh_entities) {
+        e.mesh.free_resources();
+    } 
+    mesh_entities.clear();
+    for(auto &m : instanced_meshes) {
+        m.free_resources();
     }
+    instanced_meshes.clear();
+    instanced_entities.clear();
 }
 
-void freeEntities(std::vector<Entity *> &entities) {
-    for(auto &e : entities) {
-        freeEntity(e);
-    }
-    entities.clear();
+Entities::~Entities() {
+    clear();
 }

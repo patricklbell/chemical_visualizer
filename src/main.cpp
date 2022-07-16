@@ -124,11 +124,11 @@ int main() {
             pair.second.second = std::filesystem::last_write_time(pair.first);
     }
 
-    MolFile molfile;
-    loadMolFile(molfile, "data/examples/molfiles/caffeine.mol");
+    PdbFile pdb_file;
+    loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
    
-    std::vector<Entity*> entities;
-    camera.target = createEntitiesFromMolFile(entities, molfile);
+    Entities entities;
+    camera.target = createEntitiesFromPdbFile(entities, pdb_file);
 
     initGui();
     initControls();

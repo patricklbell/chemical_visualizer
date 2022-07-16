@@ -7,6 +7,6 @@
 #include "controls.hpp"
 
 void initGui();
-void drawGui(Camera &camera, std::vector<Entity*> &entities);
+void drawGui(Camera &camera, Entities &entities);
 
 #endif

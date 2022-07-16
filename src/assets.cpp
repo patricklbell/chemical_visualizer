@@ -43,15 +43,15 @@ const auto ai_import_flags =
     //aiProcess_OptimizeGraph |
     aiProcess_Debone;
 
-Mesh::~Mesh(){
+void Mesh::free_resources(){
     glDeleteVertexArrays(1, &vao);
 
-    free(indices);
-    free(vertices);
+    free(indices);   
+    free(vertices);   
     free(normals);
-
-    free(draw_start);
-    free(draw_count);
+   
+    free(draw_start);   
+    free(draw_count);   
 };
 
 enum class MeshAttributes : char {

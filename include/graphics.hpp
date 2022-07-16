@@ -21,7 +21,7 @@ void framebufferSizeCallback(GLFWwindow *window, int width, int height);
 void initGraphicsPrimitives();
 
 void bindBackbuffer();
-void drawEntities(const std::vector<Entity*> &entities, const Camera &camera);
+void drawEntities(const Entities &entities, const Camera &camera);
 
 namespace graphics{
     extern Mesh sphere;
