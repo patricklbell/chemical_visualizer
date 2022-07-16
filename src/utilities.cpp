@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iostream>
 #include <cstring>
 #include <limits>
 #include <vector>
@@ -18,8 +19,10 @@
 #include "entities.hpp"
 #include "globals.hpp"
 #include "graphics.hpp"
+#include "loader.hpp"
 #include "utilities.hpp"
 #include "texture.hpp"
+#include "loader.hpp"
 
 void scaleMat3(glm::mat3 &mat, glm::vec3 scl) {
     mat[0][0] *= scl.x;
@@ -40,7 +43,7 @@ inline glm::vec3 calculateTriangleNormalCCW(const glm::vec3 &p1, const glm::vec3
 }
 
 inline void printVector(const glm::vec3 &v) {
-    printf("x: %9.6f, y: %9.6f, z: %9.6f\n", v.x, v.y, v.z);
+    printf("x: %10.7f, y: %10.7f, z: %10.7f\n", v.x, v.y, v.z);
 }
 
 // https://cadxfem.org/inf/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
@@ -309,7 +312,7 @@ glm::vec3 randomColor() {
 
 // http://www.paulbourke.net/miscellaneous/interpolation
 // Cubic interpolation applied independently to each dimension between x1 and x2
-void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, int n, glm::vec3 *curve) {
+void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, const int n, glm::vec3 *curve) {
     // @note maybe use smoother method
     glm::vec3 a0, a1, a2, a3;
     a0 = x3 - x2 - x0 + x1;
@@ -318,12 +321,134 @@ void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3
     a3 = x1;
 
     curve[0] = x1;
-    for(int i = 0; i < n - 1; i++) {
+    for(int i = 1; i < n-1; i++) {
         auto x = glm::vec3((float)i / (n-1));
         // Component-wise multiplication
-        curve[i+1] = a0*x*x*x + a1*x*x + a2*x +a3;
+        curve[i] = a0*x*x*x + a1*x*x + a2*x +a3;
     }
     curve[n-1] = x2;
+}
+
+void createCubicSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *normal_profile, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
+    auto &pp1 = p1.position;
+    auto &pp2 = p2.position;
+    auto &pp3 = p3.position;
+    auto &pp4 = p4.position;
+
+    // @note maybe use smoother method
+    glm::vec3 a0, a1, a2, a3;
+    a0 = -0.5f*pp1 + 1.5f*pp2 - 1.5f*pp3 + 0.5f*pp4;
+    a1 = pp1 - 2.5f*pp2 + 2.f*pp3 - 0.5f*pp4;
+    a2 = -0.5f*pp1 + 0.5f*pp3;
+    a3 = pp2;
+
+
+    for(int i = 0; i < num_points_per_spline; i++) {
+        auto t = glm::vec3((float)i / (num_points_per_spline-1));
+
+        auto pp =                a0*t*t*t   + a1*t*t   + a2*t + a3;
+        auto pt = glm::normalize(3.f*a0*t*t + 2.f*a1*t + a2);
+        auto pa =                6.f*a0*t   + 2.f*a1;
+
+        auto pbn = glm::normalize(glm::cross(pt, pa));
+        auto pn =  glm::normalize(glm::cross(pt, pbn));
+
+        if(glm::dot(pn, prev_normal) < 0) {
+            pn *= -1.f;
+            pbn *= -1.f;
+        }
+
+        projectPointsOnPlane(num_splines, pp, pn, pbn, profile, &spline_tube[num_splines*i]);
+        projectPointsOnPlane(num_splines, pp, pn, pbn, normal_profile, &normals_tube[num_splines*i]);
+        prev_normal = pn;
+    }
+}
+
+void createCubicSplineBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal) {
+    auto &pp1 = p1.position;
+    auto &pp2 = p2.position;
+    auto &pp3 = p3.position;
+    auto &pp4 = p4.position;
+
+    // @note maybe use smoother method
+    glm::vec3 a0, a1, a2, a3;
+    a0 = -0.5f*pp1 + 1.5f*pp2 - 1.5f*pp3 + 0.5f*pp4;
+    a1 = pp1 - 2.5f*pp2 + 2.f*pp3 - 0.5f*pp4;
+    a2 = -0.5f*pp1 + 0.5f*pp3;
+    a3 = pp2;
+
+
+    for(int i = 0; i < num_points_per_spline; i++) {
+        auto t = glm::vec3((float)i / (num_points_per_spline-1));
+
+        auto pp =                a0*t*t*t   + a1*t*t   + a2*t + a3;
+        auto pt = glm::normalize(3.f*a0*t*t + 2.f*a1*t + a2);
+        auto pa =                6.f*a0*t   + 2.f*a1;
+
+        auto pbn = glm::normalize(glm::cross(pt, pa));
+        auto pn =  glm::normalize(glm::cross(pt, pbn));
+
+        if(glm::dot(pn, prev_normal) < 0) {
+            pn *= -1.f;
+            pbn *= -1.f;
+        }
+
+        projectPointsOnPlane(num_splines, pp, pn, pbn, profile, &spline_tube[num_splines*i]);
+        prev_normal = pn;
+    }
+}
+
+void createHermiteSplineBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal) {
+    auto &pp1 = p1.position;
+    auto &pp2 = p2.position;
+    auto &pp3 = p3.position;
+    auto &pp4 = p4.position;
+
+    // hermite interpolation
+    const glm::vec3 tension(0.5), bias(0), id(1);
+
+    glm::vec3 m0, m1;
+    m0  = (pp2-pp1)*(id+bias)*(id-tension)/2.f;
+    m0 += (pp3-pp2)*(id-bias)*(id-tension)/2.f;
+    m1  = (pp3-pp2)*(id+bias)*(id-tension)/2.f;
+    m1 += (pp4-pp3)*(id-bias)*(id-tension)/2.f;
+
+    glm::vec3 a0, a1, a2, a3, _a0, _a1, _a2, _a3, __a0, __a1, __a2, __a3;
+    for(int i = 0; i < num_points_per_spline; i++) {
+        auto t = glm::vec3((float)i / (num_points_per_spline-1));
+        auto t2 = t*t;
+        auto t3 = t2*t;
+
+        a0 =  2.f*t*t*t - 3.f*t*t + id;
+        a1 =      t*t*t - 2.f*t*t + t;
+        a2 =      t*t*t -     t*t;
+        a3 = -2.f*t*t*t + 3.f*t*t;
+
+        auto pp = a0*pp1+a1*m0+a2*m1+a3*pp2;
+
+        _a0 =  6.f*t*t - 6.f*t;
+        _a1 =  3.f*t*t - 4.f*t + id;
+        _a2 =  3.f*t*t - 2.f*t;
+        _a3 = -6.f*t*t + 6.f*t;
+        auto pt = glm::normalize(_a0*pp1+_a1*m0+_a2*m1+_a3*pp2);
+
+        __a0 =  12.f*t - 6.f*id;
+        __a1 =   6.f*t - 4.f*id;
+        __a2 =   6.f*t - 2.f*id;
+        __a3 = -12.f*t + 6.f*id;
+        auto pa = glm::normalize(__a0*pp1+__a1*m0+__a2*m1+__a3*pp2);
+
+        auto pbn = glm::normalize(glm::cross(pt, pa));
+        auto pn =  glm::normalize(glm::cross(pt, pbn));
+
+        if(glm::dot(pn, prev_normal) < 0) {
+            pn *= -1.f;
+            pbn *= -1.f;
+        }
+
+        projectPointsOnPlane(num_splines, pp, pn, pbn, profile, &spline_tube[num_splines*i]);
+        prev_normal = pn;
+    }
 }
 
 void createCircularProfile(const int n, glm::vec2 *points, float r=1.0) {
@@ -333,6 +458,10 @@ void createCircularProfile(const int n, glm::vec2 *points, float r=1.0) {
         points[i].x = r*glm::cos(t);
         points[i].y = r*glm::sin(t);
     }
+}
+void createCircularProfileNormals(const int n, glm::vec2 *normals) {
+    // Circle's normals are just it's positions
+    createCircularProfile(n, normals, 1);
 }
 
 // Transforms 2D points onto 3D plane
@@ -389,19 +518,18 @@ void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::v
 // @note doesn't recreate vao after modifying mesh
 // surface should be a 2d array of num_splines by num_points_per_spline packed into a 1d array
 void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, glm::vec3 *surface, Mesh &mesh) {
-    auto &npps = num_points_per_spline;
-
     int vertex_offset = mesh.num_vertices;
     int index_offset = mesh.num_indices;
+
+    int num_quads = (num_points_per_spline - 1)*(num_splines);
     
-    // Triangles per band * num of bands
-    int num_triangles = 2*(num_points_per_spline - 1)*(num_splines);
-    mesh.num_indices += num_triangles*3;
+    int num_triangles = 2*num_quads;
+    mesh.num_indices += 3*num_triangles;
     //printf("Realloc indices size %d num %d\n", (int)sizeof(*mesh.indices), mesh.num_indices); // @debug
     mesh.indices = (unsigned short *)realloc(mesh.indices, sizeof(*mesh.indices)*mesh.num_indices);
 
-    // Since each quad is indexed together num vertices is num quads*4 
-    mesh.num_vertices += 4*(num_points_per_spline - 1)*(num_splines);
+    // Since each quad is indexed together
+    mesh.num_vertices += 4*num_quads;
     //printf("Realloc vertices size %d num %d\n", (int)sizeof(*mesh.vertices), mesh.num_vertices); // @debug
     mesh.vertices = (glm::vec3 *)realloc(mesh.vertices, sizeof(*mesh.vertices)*mesh.num_vertices);
     mesh.normals =  (glm::vec3 *)realloc( mesh.normals,  sizeof(*mesh.normals)*mesh.num_vertices);
@@ -413,15 +541,16 @@ void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, 
     for(int i = 0; i < num_splines; i++) {
         for(int j = 0; j < num_points_per_spline - 1; j++) {
             // CCW winding order
-            auto &p1 = surface[npps*((i+1)%num_splines) + j+1];
-            auto &p2 = surface[npps*((i+1)%num_splines) + j];
-            auto &p3 = surface[npps*(i  ) + j];
-            auto &p4 = surface[npps*(i  ) + j+1];
+            auto &p1 = surface[(i+1)%num_splines + (j+1)*num_splines];
+            auto &p2 = surface[(i+1)%num_splines + (j  )*num_splines];
+            auto &p3 = surface[i                 + (j  )*num_splines];
+            auto &p4 = surface[i                 + (j+1)*num_splines];
             auto n = toModelSpace(calculateTriangleNormalCCW(p1, p2, p3));
+
             mesh.vertices[vertex_offset + 4*quad    ] = toModelSpace(p1);
             mesh.vertices[vertex_offset + 4*quad + 1] = toModelSpace(p2);
             mesh.vertices[vertex_offset + 4*quad + 2] = toModelSpace(p3);
-            mesh.vertices[vertex_offset + 4*quad + 3] = toModelSpace(p3);
+            mesh.vertices[vertex_offset + 4*quad + 3] = toModelSpace(p4);
             mesh.normals [vertex_offset + 4*quad    ] = n;
             mesh.normals [vertex_offset + 4*quad + 1] = n;
             mesh.normals [vertex_offset + 4*quad + 2] = n;
@@ -432,10 +561,57 @@ void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, 
             mesh.indices [index_offset  + 6*quad + 2] = vertex_offset + 4*quad + 2;
 
             mesh.indices [index_offset  + 6*quad + 3] = vertex_offset + 4*quad + 2;
-            mesh.indices [index_offset  + 6*quad + 4] = vertex_offset + 4*quad + 1;
-            mesh.indices [index_offset  + 6*quad + 5] = vertex_offset + 4*quad + 3;
+            mesh.indices [index_offset  + 6*quad + 4] = vertex_offset + 4*quad + 3;
+            mesh.indices [index_offset  + 6*quad + 5] = vertex_offset + 4*quad;
 
             quad++;
         }
+    }
+}
+
+void createClosedSurfaceFromSplinesNormals(int num_splines, int num_points_per_spline, glm::vec3 *surface, glm::vec3 *normals, Mesh &mesh) {
+    int vertex_offset = mesh.num_vertices;
+    int index_offset = mesh.num_indices;
+
+    int num_quads = (num_points_per_spline - 1)*(num_splines);
+    
+    int num_triangles = 2*num_quads;
+    mesh.num_indices += 3*num_triangles;
+    //printf("Realloc indices size %d num %d\n", (int)sizeof(*mesh.indices), mesh.num_indices); // @debug
+    mesh.indices = (unsigned short *)realloc(mesh.indices, sizeof(*mesh.indices)*mesh.num_indices);
+
+    mesh.num_vertices += num_points_per_spline*num_splines;
+    //printf("Realloc vertices size %d num %d\n", (int)sizeof(*mesh.vertices), mesh.num_vertices); // @debug
+    mesh.vertices = (glm::vec3 *)realloc(mesh.vertices, sizeof(*mesh.vertices)*mesh.num_vertices);
+    mesh.normals =  (glm::vec3 *)realloc( mesh.normals,  sizeof(*mesh.normals)*mesh.num_vertices);
+
+    mesh.draw_count[0] += 3*num_triangles;
+
+    int quad = 0;
+    for(int i = 0; i < num_splines; i++) {
+        for(int j = 0; j < num_points_per_spline - 1; j++) {
+            // CCW winding order
+            auto ip1 = (i+1)%num_splines + (j+1)*num_splines;
+            auto ip2 = (i+1)%num_splines + (j  )*num_splines;
+            auto ip3 = i                 + (j  )*num_splines;
+            auto ip4 = i                 + (j+1)*num_splines;
+
+            int point_indice = i*num_points_per_spline + j;
+            mesh.vertices[vertex_offset + point_indice] = toModelSpace(surface[point_indice]);
+            mesh.normals [vertex_offset + point_indice] = toModelSpace(normals[point_indice]);
+
+            mesh.indices [index_offset  + 6*quad    ] = vertex_offset + ip1;
+            mesh.indices [index_offset  + 6*quad + 1] = vertex_offset + ip2;
+            mesh.indices [index_offset  + 6*quad + 2] = vertex_offset + ip3;
+
+            mesh.indices [index_offset  + 6*quad + 3] = vertex_offset + ip2;
+            mesh.indices [index_offset  + 6*quad + 4] = vertex_offset + ip4;
+            mesh.indices [index_offset  + 6*quad + 5] = vertex_offset + ip1;
+
+            quad++;
+        }
+        int point_indice = i*num_points_per_spline + num_points_per_spline - 1;
+        mesh.vertices[vertex_offset + point_indice] = toModelSpace(surface[point_indice]);
+        mesh.normals [vertex_offset + point_indice] = toModelSpace(normals[point_indice]);
     }
 }

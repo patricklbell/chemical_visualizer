@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include "assets.hpp"
 #include "controls.hpp"
+#include "loader.hpp"
 
 void scaleMat3(glm::mat3 &mat, glm::vec3 scl);
 glm::mat4x4 createModelMatrix(const glm::vec3 &pos, const glm::quat &rot, const glm::mat3x3 &scl);
@@ -28,11 +29,15 @@ void substrString(const char *src, int start, int end, char *result);
 void substrChar(const char *src, int pos, char *result);
 void substrInt(const char *src, int start, int end, int *result);
 void substrFloat(const char *src, int start, int end, float *result);
-void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, int n, glm::vec3 *curve);
+void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, const int n, glm::vec3 *curve);
+void createCubicSplineBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal);
+void createCubicSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *normal_profile, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal);
 void createCircularProfile(const int n, glm::vec2 *points, float r);
+void createCircularProfileNormals(const int n, glm::vec2 *normals);
 void projectPointsOnPlane(int num, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points);
 void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::vec3 *profile, Mesh &mesh, const bool flipped);
 void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, glm::vec3 *surface, Mesh &mesh);
+void createClosedSurfaceFromSplinesNormals(int num_splines, int num_points_per_spline, glm::vec3 *surface, glm::vec3 *normals, Mesh &mesh);
 glm::vec3 randomColor();
 
 #endif /* ifndef UTILITIES_HPP */

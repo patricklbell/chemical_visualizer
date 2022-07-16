@@ -457,7 +457,7 @@ void loadPdbFile(PdbFile &data, std::string path){
 }
 
 // Mesh which blends between different secondary structures in one polypeptide chain 
-void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
+void createPolypeptideEntity(Entities &entities, const std::vector<PeptidePlane> &planes) {
     auto color = randomColor();
 
     auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
@@ -479,11 +479,13 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     mesh.draw_count[0] = 0;
     printf("Created Peptide mesh\n");
 
-    constexpr float r = 0.3;
+    constexpr float r = 0.2;
     // @todo these should probably 
-    constexpr int num_splines = 20, num_points_per_spline = 5;
+    constexpr int num_splines = 20, num_points_per_spline = 25;
     glm::vec2 circle_profile[num_splines];
+    //glm::vec2 circle_profile_normals[num_splines];
     createCircularProfile(num_splines, circle_profile, r);
+    //createCircularProfileNormals(num_splines, circle_profile_normals);
 
     printf("Created circular profile\n");
     for(int i = 0; i < num_splines; i++) {
@@ -495,95 +497,74 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 
 
     // @debug -->
-    glm::vec3 tube[num_splines][num_points_per_spline];
-    
-    glm::vec3 pf1[num_splines];
-    glm::vec3 pf2[num_splines];
-    glm::vec3 pf3[num_splines];
-    glm::vec3 pf4[num_splines];
-    //auto n = glm::normalize(glm::vec3(rand() - RAND_MAX / 2, rand() - RAND_MAX / 2, rand() - RAND_MAX / 2));
-    //auto u = glm::normalize(anyPerpendicular(n));
-    //auto v = glm::normalize(glm::cross(n, u));
-    projectPointsOnPlane(num_splines, glm::vec3(-0.5,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf1);
-    projectPointsOnPlane(num_splines, glm::vec3( 0.0,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf2);
-    projectPointsOnPlane(num_splines, glm::vec3( 0.5,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf3);
-    projectPointsOnPlane(num_splines, glm::vec3( 1.0,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf4);
-    //projectPointsOnPlane(num_splines, glm::vec3(0,0,0), u, v, circle_profile, pf4);
-    createClosedFacedFromProfile(glm::vec3(-0.5,0,0), num_splines, pf1, mesh, false);
-    createClosedFacedFromProfile(glm::vec3( 0.0,0,0), num_splines, pf2, mesh, false);
-    createClosedFacedFromProfile(glm::vec3( 0.5,0,0), num_splines, pf3, mesh, false);
-    createClosedFacedFromProfile(glm::vec3( 1.0,0,0), num_splines, pf4, mesh, false);
-    //createClosedFacedFromProfile(glm::vec3(0,0,0), num_splines, pf4, mesh);
-    createDebugCartesian(glm::vec3(-0.5,0,0), 0.2f*glm::vec3(1,0,0), 0.2f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.03);
-    createDebugCartesian(glm::vec3( 0.0,0,0), 0.2f*glm::vec3(1,0,0), 0.2f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.03);
-    createDebugCartesian(glm::vec3( 0.5,0,0), 0.2f*glm::vec3(1,0,0), 0.2f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.03);
-    createDebugCartesian(glm::vec3( 1.0,0,0), 0.2f*glm::vec3(1,0,0), 0.2f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.03);
-    //createDebugCartesian(glm::vec3(0,0,0), 0.2f*n, 0.2f*u, 0.2f*v, entities, 0.03);
+    //glm::vec3 tube[num_splines][num_points_per_spline];
+    //
+    //glm::vec3 pf1[num_splines];
+    //glm::vec3 pf2[num_splines];
+    //glm::vec3 pf3[num_splines];
+    //glm::vec3 pf4[num_splines];
+    ////auto n = glm::normalize(glm::vec3(rand() - RAND_MAX / 2, rand() - RAND_MAX / 2, rand() - RAND_MAX / 2));
+    ////auto u = glm::normalize(anyPerpendicular(n));
+    ////auto v = glm::normalize(glm::cross(n, u));
+    //projectPointsOnPlane(num_splines, glm::vec3(-0.5,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf1);
+    //projectPointsOnPlane(num_splines, glm::vec3( 0.0,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf2);
+    //projectPointsOnPlane(num_splines, glm::vec3( 0.5,0.2,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf3);
+    //projectPointsOnPlane(num_splines, glm::vec3( 1.0,0.5,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf4);
+    ////projectPointsOnPlane(num_splines, glm::vec3(0,0,0), u, v, circle_profile, pf4);
+    //createClosedFacedFromProfile(glm::vec3(-0.5,0,0), num_splines, pf1, mesh, false);
+    //createClosedFacedFromProfile(glm::vec3( 0.0,0,0), num_splines, pf2, mesh, false);
+    //createClosedFacedFromProfile(glm::vec3( 0.5,0.2,0), num_splines, pf3, mesh, false);
+    //createClosedFacedFromProfile(glm::vec3( 1.0,0.5,0), num_splines, pf4, mesh, false);
+    ////createClosedFacedFromProfile(glm::vec3(0,0,0), num_splines, pf4, mesh);
+    //createDebugCartesian(glm::vec3(-0.5,0,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
+    //createDebugCartesian(glm::vec3( 0.0,0,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
+    //createDebugCartesian(glm::vec3( 0.5,0.2,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
+    //createDebugCartesian(glm::vec3( 1.0,0.5,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.01);
+    ////createDebugCartesian(glm::vec3(0,0,0), 0.2f*n, 0.2f*u, 0.2f*v, entities, 0.03);
 
-    for(int j = 0; j < num_splines; j++) {
-        // Create spline between corresponding points of adjacent profiles
-        createCubicSpline(pf1[j], pf2[j], pf3[j], pf4[j], num_points_per_spline, tube[j]);
-    }
+    //for(int j = 0; j < num_splines; j++) {
+    //    // Create spline between corresponding points of adjacent profiles
+    //    createCubicSpline(pf1[j], pf2[j], pf3[j], pf4[j], num_points_per_spline, tube[j]);
+    //}
 
-    createClosedSurfaceFromSplines(num_splines, num_points_per_spline, (glm::vec3*)tube, mesh);
+    //createClosedSurfaceFromSplines(num_splines, num_points_per_spline, (glm::vec3*)tube, mesh);
 
-    createMeshVao(mesh);
-    return;
+    //createMeshVao(mesh);
+    //return;
     // <-- @debug
 
 
 
-
+    // @todo Handle small number of planes
+    if(planes.size() < 3) return;
     
-    // Moving window of profiles
-    glm::vec3 profiles[num_splines][4];
-
     // Points describing spline tube's surface
-    glm::vec3 spline_tube[num_splines][num_points_per_spline];
-    for(int i = 0; i < planes.size() - 2; i++) {
-        // Keeps track of the moving window, this is element "0"
-        int offset = i % 4;
-        auto &pf1 = profiles[(offset  ) % 4];
-        auto &pf2 = profiles[(offset+1) % 4];
-        auto &pf3 = profiles[(offset+2) % 4];
-        auto &pf4 = profiles[(offset+3) % 4];
+    glm::vec3 spline_tube[num_points_per_spline + 1][num_splines];
+
+    const int num_planes = planes.size();
+
+    glm::vec3 previous_normal = glm::vec3(0,0,0);
+    for(int i = 0; i < num_planes - 1; i++) {
+        createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.01);
+
+        // Copy previous ring into buffer to ensure continuity
+        for(int i = 0; i < num_splines; i++) {
+            spline_tube[0][i] = spline_tube[num_points_per_spline][i];
+        }
 
         if(i == 0) {
-            // Fake p1 to handle start point 
-            auto &p2 = planes[0];
-            auto &p3 = planes[1];
-            auto &p4 = planes[2];
-            projectPointsOnPlane(num_splines, p2.position, p2.right, p2.forward, circle_profile, profiles[1]);
-            projectPointsOnPlane(num_splines, p3.position, p3.right, p3.forward, circle_profile, profiles[2]);
-            projectPointsOnPlane(num_splines, p4.position, p4.right, p4.forward, circle_profile, profiles[3]);
-
-            // Kinda hacky way of making natural spline beginning by preserving slope 
-            for(int j = 0; j < num_splines; j++) {
-                pf1[j] = -(pf3[j] - pf2[j]) + pf2[j];
-            }
-        } else if (i == planes.size() - 2){
-            // Same hack for endpoint to preserve slope
-            for(int j = 0; j < num_splines; j++) {
-                pf4[j] = (pf3[j] - pf2[j]) + pf3[j];
-            }
+            auto plane = planes[i];
+            plane.position = 2.f*planes[i].position - planes[i+1].position;
+            createCubicSplineBetweenProfiles(num_points_per_spline + 1, num_splines, circle_profile, plane, planes[i], planes[i+1], planes[i+2], &spline_tube[0][0], previous_normal);
+        } else if (i == num_planes - 2){
+            auto plane = planes[i+1];
+            plane.position = 2.f*planes[i+1].position - planes[i].position;
+            createCubicSplineBetweenProfiles(num_points_per_spline, num_splines, circle_profile, planes[i-1], planes[i], planes[i+1], plane, &spline_tube[1][0], previous_normal);
         } else {
-            auto &p4 = planes[i + 3];
-            // Update the "4th" profile with 4th plane/final control point
-            projectPointsOnPlane(num_splines, p4.position, p4.right, p4.forward, circle_profile, pf4);
+            createCubicSplineBetweenProfiles(num_points_per_spline, num_splines, circle_profile, planes[i-1], planes[i], planes[i+1], planes[i+2], &spline_tube[1][0], previous_normal);
         }
-        glm::vec3 test_tube[num_splines][2];
-        for(int j = 0; j < num_splines; j++) {
-            test_tube[j][0] = pf2[j];
-            test_tube[j][1] = pf3[j];
-        }
-        createClosedSurfaceFromSplines(num_splines, 2, (glm::vec3*)test_tube, mesh);
 
-        //for(int j = 0; j < num_splines; j++) {
-        //    // Create spline between corresponding points of adjacent profiles
-        //    createCubicSpline(pf1[j], pf2[j], pf3[j], pf4[j], num_points_per_spline, spline_tube[j]);
-        //}
-
-        //createClosedSurfaceFromSplines(num_splines, num_points_per_spline, (glm::vec3*)spline_tube, mesh);
+        createClosedSurfaceFromSplines(num_splines, num_points_per_spline + 1, &spline_tube[0][0], mesh);           
     }
     createMeshVao(mesh);
 }
@@ -734,7 +715,6 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         }
 
         createPolypeptideEntity(entities, peptide_planes);
-        return glm::vec3(0,0,0);
     }
 
     return center;

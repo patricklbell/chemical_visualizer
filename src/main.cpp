@@ -142,7 +142,7 @@ int main() {
         last_time = current_time;
         static const float dt = 1.0/60.0;
 
-        if (window_resized){
+        if (window_resized) {
             updateCamera(camera);
         }
 
