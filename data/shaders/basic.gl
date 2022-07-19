@@ -147,8 +147,8 @@ void main() {
 #endif
 
 #ifdef PBR
-    float ao = 0.1; 
-    vec3 ambient = vec3(1.1) * albedo * ao;
+    float ao = 0.3; 
+    vec3 ambient = albedo * ao;
     vec3 hdr_color = ambient + brdfSchlickGGX(position, normal, albedo, -sun_direction, sun_color);
 #endif
     const float gamma = 1.6;

@@ -13,35 +13,10 @@
 
 #include <glm/glm.hpp>
 
-#include <assimp/Importer.hpp>      // C++ importer interface
-#include <assimp/scene.h>           // Output data structure
-#include <assimp/postprocess.h>     // Post processing flags
-#include "assimp/material.h"
-#include "assimp/types.h"
-
 #include "assets.hpp"
 #include "texture.hpp"
 #include "shader.hpp"
 #include "graphics.hpp"
-
-const auto ai_import_flags = 
-    aiProcess_JoinIdenticalVertices |
-    //aiProcess_Triangulate |
-    //aiProcess_GenNormals |
-    //aiProcess_CalcTangentSpace |
-    //aiProcess_RemoveComponent (remove colors) |
-    aiProcess_LimitBoneWeights |
-    aiProcess_ImproveCacheLocality |
-    //aiProcess_RemoveRedundantMaterials |
-    //aiProcess_GenUVCoords |
-    aiProcess_SortByPType |
-    aiProcess_FindDegenerates |
-    aiProcess_FindInvalidData |
-    //aiProcess_FindInstances |
-    aiProcess_ValidateDataStructure |
-    aiProcess_OptimizeMeshes |
-    //aiProcess_OptimizeGraph |
-    aiProcess_Debone;
 
 void Mesh::free_resources(){
     glDeleteVertexArrays(1, &vao);
@@ -61,7 +36,7 @@ enum class MeshAttributes : char {
     UVS      = 4,
 };
 
-const unsigned int MESH_FILE_VERSION = 1;
+const unsigned int MESH_FILE_VERSION = 2;
 // For now dont worry about size of types on different platforms
 bool writeMeshFile(const Mesh &mesh, std::string path){
     printf("--------------------Save Mesh %s--------------------\n", path.c_str());
@@ -75,13 +50,15 @@ bool writeMeshFile(const Mesh &mesh, std::string path){
     fwrite(mesh.indices, sizeof(unsigned short), mesh.num_indices, f);
 
     // @todo For now just assume every mesh has every attribute
-    char attributes = (char)MeshAttributes::VERTICES | (char)MeshAttributes::NORMALS | (char)MeshAttributes::TANGENTS | (char)MeshAttributes::UVS;
+    char attributes = (char)MeshAttributes::VERTICES | (char)MeshAttributes::NORMALS;
     fwrite(&attributes, sizeof(char), 1, f);
 
     fwrite(&mesh.num_vertices, sizeof(int), 1, f);
 
     fwrite(mesh.vertices, sizeof(glm::fvec3), mesh.num_vertices, f);
     fwrite(mesh.normals,  sizeof(glm::fvec3), mesh.num_vertices, f);
+
+    fwrite(&mesh.num_materials, sizeof(int), 1, f);
 
     // Write material indice ranges
     fwrite(mesh.draw_start, sizeof(GLint), mesh.num_materials, f);
@@ -134,6 +111,7 @@ bool readMeshFile(Mesh &mesh, std::string path){
     }
 
     fread(&mesh.num_indices, sizeof(int), 1, f);
+    printf("Num of indices %d\n", mesh.num_indices);
     mesh.indices = (unsigned short *)malloc(sizeof(unsigned short)*mesh.num_indices);
     fread(mesh.indices, sizeof(unsigned short), mesh.num_indices, f);
 
@@ -142,6 +120,7 @@ bool readMeshFile(Mesh &mesh, std::string path){
     
     // @todo For now just assume all attributes
     fread(&mesh.num_vertices, sizeof(int), 1, f);
+    printf("Num of vertices %d\n", mesh.num_vertices);
 
     mesh.vertices = (glm::fvec3*)malloc(sizeof(glm::fvec3)*mesh.num_vertices);
     mesh.normals  = (glm::fvec3*)malloc(sizeof(glm::fvec3)*mesh.num_vertices);
@@ -151,6 +130,9 @@ bool readMeshFile(Mesh &mesh, std::string path){
     // @hardcoded
 	mesh.draw_mode = GL_TRIANGLES;
 	mesh.draw_type = GL_UNSIGNED_SHORT;
+
+    fread(&mesh.num_materials, sizeof(int), 1, f);
+    printf("Num of materials %d\n", mesh.num_materials);
 
     mesh.draw_start = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
     mesh.draw_count = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
@@ -162,6 +144,35 @@ bool readMeshFile(Mesh &mesh, std::string path){
     createMeshVao(mesh);
     return true;
 }
+
+#ifdef USE_ASSIMP 
+
+#include <assimp/Importer.hpp>      // C++ importer interface
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
+#include "assimp/material.h"
+#include "assimp/types.h"
+
+const auto ai_import_flags = 
+    aiProcess_JoinIdenticalVertices |
+    //aiProcess_Triangulate |
+    //aiProcess_GenNormals |
+    //aiProcess_CalcTangentSpace |
+    //aiProcess_RemoveComponent (remove colors) |
+    aiProcess_LimitBoneWeights |
+    aiProcess_ImproveCacheLocality |
+    //aiProcess_RemoveRedundantMaterials |
+    //aiProcess_GenUVCoords |
+    aiProcess_SortByPType |
+    aiProcess_FindDegenerates |
+    aiProcess_FindInvalidData |
+    //aiProcess_FindInstances |
+    aiProcess_ValidateDataStructure |
+    aiProcess_OptimizeMeshes |
+    //aiProcess_OptimizeGraph |
+    aiProcess_Debone;
+
+
 bool loadMeshWithAssimp(Mesh &mesh, std::string path){
 	printf("--------------------Loading Mesh %s With Assimp--------------------\n", path.c_str());
 
@@ -232,3 +243,5 @@ bool loadMeshWithAssimp(Mesh &mesh, std::string path){
 	// The "scene" pointer will be deleted automatically by "importer"
 	return true;
 }
+
+#endif

@@ -7,8 +7,6 @@
 
 #include <glm/glm.hpp>
 
-#include <assimp/scene.h> 
-
 struct Material {
     glm::fvec3 albedo;
 } typedef Material;

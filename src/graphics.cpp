@@ -48,7 +48,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    glClearColor(0.05,0.05,0.05,1);
+    glClearColor(0.12,0.13, 0.2,1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader::basic_program);

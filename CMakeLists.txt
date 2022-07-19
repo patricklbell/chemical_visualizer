@@ -28,16 +28,24 @@ include_directories(
 	external/glm-0.9.7.1/
 	external/glew-2.1.0/include/
 	external/imgui/include/
-	external/assimp-5.1.5/include/
 	external/stb/
 	include/
 )
+
 set(ALL_LIBS
 	${OPENGL_LIBRARY}
 	glfw
 	GLEW_210
-	assimp
 )
+
+option(USE_ASSIMP "Compile with assimp to load obj not custom mesh file" OFF)
+
+if(USE_ASSIMP)
+    include_directories(
+	    external/assimp-5.1.5/include/
+    )
+    list(APPEND ALL_LIBS assimp)
+endif()
 
 add_definitions(
 	-DTW_STATIC
@@ -79,7 +87,9 @@ target_link_libraries(chem_viz
 	${ALL_LIBS}
 )
 
-set_target_properties(chem_viz PROPERTIES COMPILE_DEFINITIONS "USE_ASSIMP")
+if(USE_ASSIMP)
+    set_target_properties(chem_viz PROPERTIES COMPILE_DEFINITIONS "USE_ASSIMP")
+endif()
 
 ## Copy Shaders
 #add_custom_command(

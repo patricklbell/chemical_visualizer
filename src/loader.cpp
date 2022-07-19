@@ -128,9 +128,13 @@ void createAtomEntity(const glm::vec3 &pos, const glm::vec3 &col, Entities &enti
 }
 
 glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data){
-    // @todo make these mesh files to load quicker
+#ifdef USE_ASSIMP
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
+#else
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
+#endif
 
     static const float relative_cylinder_size = 0.05;
     static const float relative_sphere_size   = 0.3;
@@ -230,6 +234,11 @@ long hashBondPair(int id_1, int id_2) {
     else            return (long)id_2 ^ ((long)id_1 << 16);
 }
 
+int hashResidueSeqChain(int res_seq, char chain_id) {
+    // Since res <= 9999
+    return res_seq + 100000*chain_id;
+}
+
 void createResidueId(int seq_num, char res_name[4], char chain_id, char i_code, char result[10]) {
     sprintf(result, "%3s%c%4d%c", res_name, chain_id, seq_num, i_code); 
 }
@@ -272,6 +281,9 @@ void loadPdbFile(PdbFile &data, std::string path){
                 substrSscanf(line, 6, 10, " %d", &serial);
 
                 // @note this overwrites duplicate ids
+                auto lu0 = model.atoms.find(serial);
+                if(lu0 != model.atoms.end()) printf("Collision for serial %d\n", serial);
+
                 PdbAtom &atom = model.atoms[serial];
                 atom.serial = serial;
                 atom.is_heterogen = !strcmp(record_name, "HETATM");
@@ -282,10 +294,11 @@ void loadPdbFile(PdbFile &data, std::string path){
                 substrChar  (line, 21,     &atom.chain_id);
                 substrInt   (line, 22, 25, &atom.res_seq);
 
-                auto lu = model.residues.find(atom.res_seq);
+                auto reside_id = hashResidueSeqChain(atom.res_seq, atom.chain_id);
+                auto lu = model.residues.find(reside_id);
                 // If residue doesn't exist create it
                 if(lu == model.residues.end()) {
-                    auto &residue = model.residues.try_emplace(atom.res_seq).first->second;
+                    auto &residue = model.residues.try_emplace(reside_id).first->second;
 
                     memcpy(residue.res_name, atom.res_name, 4);
                     residue.chain_id = atom.chain_id;
@@ -319,6 +332,7 @@ void loadPdbFile(PdbFile &data, std::string path){
                     residue.atom_name_id[atom.name] = atom.serial;
                 }
 
+
                 substrFloat(line, 30, 37, &atom.position.x);
                 substrFloat(line, 38, 45, &atom.position.y);
                 substrFloat(line, 46, 53, &atom.position.z);
@@ -327,6 +341,12 @@ void loadPdbFile(PdbFile &data, std::string path){
                 sscanf(&line[76], "%2s", atom.symbol);
                 atom.symbol[1] = tolower(atom.symbol[1]);
                 atom.symbol[2] = '\0';
+
+                //if(atom.is_heterogen) printf("HETATM:");
+                //else                  printf("ATOM  :");
+                //printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d position ", 
+                //        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
+                //printVector(atom.position);
             } else if(!strcmp(record_name, "CONECT")) { 
                 int atom_id;
                 int connect_ids[4];
@@ -387,8 +407,10 @@ void loadPdbFile(PdbFile &data, std::string path){
                     // Create and modify sheet only first time
                     sheet = &model.sheets.try_emplace(sheet_id).first->second;
                     memcpy(sheet->sheet_id, sheet_id, 4);
-                    substrInt(   line, 14, 15, &sheet->num_strands);
-                    bool is_first = true;
+                    substrInt(line, 14, 15, &sheet->num_strands);
+                    is_first = true;
+                    printf("SHEET : sheet_id %s num_strands %d\n",
+                            sheet->sheet_id, sheet->num_strands); // @debug
                 } else {
                     sheet = &model.sheets[sheet_id];
                 }
@@ -420,7 +442,10 @@ void loadPdbFile(PdbFile &data, std::string path){
                     substrChar  (line, 64,     &strand.prev_chain_id);
                     substrInt   (line, 65, 68, &strand.prev_seq_num);
                     substrChar  (line, 69,     &strand.prev_i_code);
-                }
+
+                } 
+                printf("STRAND: sheet_id %s init_res_name %s init_seq_num %3d end_res_name %s end_seq_num %3d\n",
+                        sheet->sheet_id, strand.init_res_name, strand.init_seq_num, strand.end_res_name, strand.end_seq_num); // @debug
             } else if(!strcmp(record_name, "ENDMDL")) {
                 printf("ENDMDL\n");
             }
@@ -429,11 +454,17 @@ void loadPdbFile(PdbFile &data, std::string path){
 
     // Processing after loading from file
     for(auto &model : data.models) {
+
         // Label residue type based on secondary structures
         for(auto &j : model.helices) {
             auto &helix = j.second;
+
+            if(helix.init_chain_id != helix.end_chain_id) fprintf(stderr, "Error: helix chain init and end not equal");
+            char chain_id = helix.init_chain_id;
+
             for(int seq_num = helix.init_seq_num; seq_num <= helix.end_seq_num; seq_num++) {
-                auto lu = model.residues.find(seq_num);
+                auto residue_id = hashResidueSeqChain(seq_num, chain_id);
+                auto lu = model.residues.find(residue_id);
                 if(lu == model.residues.end()) continue;
 
                 auto &residue = lu->second;
@@ -442,10 +473,16 @@ void loadPdbFile(PdbFile &data, std::string path){
         }
         for(auto &j : model.sheets) {
             auto &sheet = j.second;
+            
             for(auto &k : sheet.strands) {
                 auto &strand = k.second;
+
+                if(strand.init_chain_id != strand.end_chain_id) fprintf(stderr, "Error: strand chain_id init and end not equal");
+                char chain_id = strand.init_chain_id;
+
                 for(int seq_num = strand.init_seq_num; seq_num <= strand.end_seq_num; seq_num++) {
-                    auto lu = model.residues.find(seq_num);
+                    auto residue_id = hashResidueSeqChain(seq_num, chain_id);
+                    auto lu = model.residues.find(residue_id);
                     if(lu == model.residues.end()) continue;
 
                     auto &residue = lu->second;
@@ -477,103 +514,136 @@ void createPolypeptideEntity(Entities &entities, const std::vector<PeptidePlane>
     mesh.draw_count = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
     mesh.draw_start[0] = 0;
     mesh.draw_count[0] = 0;
-    printf("Created Peptide mesh\n");
 
     constexpr float r = 0.2;
     // @todo these should probably 
-    constexpr int num_splines = 20, num_points_per_spline = 25;
+    constexpr int num_splines = 16, num_points_per_spline = 10;
     glm::vec2 circle_profile[num_splines];
-    //glm::vec2 circle_profile_normals[num_splines];
+    glm::vec2 circle_profile_normals[num_splines];
     createCircularProfile(num_splines, circle_profile, r);
-    //createCircularProfileNormals(num_splines, circle_profile_normals);
+    createCircularProfileNormals(num_splines, circle_profile_normals);
 
-    printf("Created circular profile\n");
-    for(int i = 0; i < num_splines; i++) {
-        auto &pf = circle_profile[i];
-        printf("Vertex %3d x: %9.6f y: %9.6f\n", i, pf.x, pf.y);
-    }
+    glm::vec2 ellipse_profile[num_splines];
+    glm::vec2 ellipse_profile_normals[num_splines];
+    createEllipseProfile(num_splines, ellipse_profile, 3.f*r, r/2.f);
+    createEllipseProfileNormals(num_splines, ellipse_profile_normals, 3.f*r, r/2.f);
 
-
-
-
-    // @debug -->
-    //glm::vec3 tube[num_splines][num_points_per_spline];
-    //
-    //glm::vec3 pf1[num_splines];
-    //glm::vec3 pf2[num_splines];
-    //glm::vec3 pf3[num_splines];
-    //glm::vec3 pf4[num_splines];
-    ////auto n = glm::normalize(glm::vec3(rand() - RAND_MAX / 2, rand() - RAND_MAX / 2, rand() - RAND_MAX / 2));
-    ////auto u = glm::normalize(anyPerpendicular(n));
-    ////auto v = glm::normalize(glm::cross(n, u));
-    //projectPointsOnPlane(num_splines, glm::vec3(-0.5,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf1);
-    //projectPointsOnPlane(num_splines, glm::vec3( 0.0,0,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf2);
-    //projectPointsOnPlane(num_splines, glm::vec3( 0.5,0.2,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf3);
-    //projectPointsOnPlane(num_splines, glm::vec3( 1.0,0.5,0), glm::vec3(0,0,1), glm::vec3(0,1,0), circle_profile, pf4);
-    ////projectPointsOnPlane(num_splines, glm::vec3(0,0,0), u, v, circle_profile, pf4);
-    //createClosedFacedFromProfile(glm::vec3(-0.5,0,0), num_splines, pf1, mesh, false);
-    //createClosedFacedFromProfile(glm::vec3( 0.0,0,0), num_splines, pf2, mesh, false);
-    //createClosedFacedFromProfile(glm::vec3( 0.5,0.2,0), num_splines, pf3, mesh, false);
-    //createClosedFacedFromProfile(glm::vec3( 1.0,0.5,0), num_splines, pf4, mesh, false);
-    ////createClosedFacedFromProfile(glm::vec3(0,0,0), num_splines, pf4, mesh);
-    //createDebugCartesian(glm::vec3(-0.5,0,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
-    //createDebugCartesian(glm::vec3( 0.0,0,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
-    //createDebugCartesian(glm::vec3( 0.5,0.2,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.15f*glm::vec3(0,1,0), entities, 0.01);
-    //createDebugCartesian(glm::vec3( 1.0,0.5,0), 0.15f*glm::vec3(1,0,0), 0.15f*glm::vec3(0,0,1), 0.2f*glm::vec3(0,1,0), entities, 0.01);
-    ////createDebugCartesian(glm::vec3(0,0,0), 0.2f*n, 0.2f*u, 0.2f*v, entities, 0.03);
-
-    //for(int j = 0; j < num_splines; j++) {
-    //    // Create spline between corresponding points of adjacent profiles
-    //    createCubicSpline(pf1[j], pf2[j], pf3[j], pf4[j], num_points_per_spline, tube[j]);
-    //}
-
-    //createClosedSurfaceFromSplines(num_splines, num_points_per_spline, (glm::vec3*)tube, mesh);
-
-    //createMeshVao(mesh);
-    //return;
-    // <-- @debug
-
-
+    glm::vec2 rectangle_profile[num_splines];
+    glm::vec2 rectangle_profile_normals[num_splines];
+    createRectangleProfile(num_splines, rectangle_profile, 6.f*r, 2.f*r);
+    createRectangleProfileNormals(num_splines, rectangle_profile_normals, 6.f*r, 2.f*r);
 
     // @todo Handle small number of planes
     if(planes.size() < 3) return;
     
     // Points describing spline tube's surface
-    glm::vec3 spline_tube[num_points_per_spline + 1][num_splines];
+    glm::vec3 spline_tube [num_points_per_spline + 1][num_splines];
+    glm::vec3 normals_tube[num_points_per_spline + 1][num_splines];
 
     const int num_planes = planes.size();
 
     glm::vec3 previous_normal = glm::vec3(0,0,0);
     for(int i = 0; i < num_planes - 1; i++) {
-        createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.01);
+        //createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.01);
 
-        // Copy previous ring into buffer to ensure continuity
-        for(int i = 0; i < num_splines; i++) {
-            spline_tube[0][i] = spline_tube[num_points_per_spline][i];
+        glm::vec2 *pf1, *pf2, *pfn1, *pfn2;
+        switch (planes[i].residue_1->type) {
+            case PdbResidueType::COIL:
+                {
+                    pf1  = circle_profile;
+                    pfn1 = circle_profile_normals;
+                    break;
+                }
+            case PdbResidueType::HELIX:
+                {
+                    pf1  = rectangle_profile;
+                    pfn1 = rectangle_profile_normals;
+                    break;
+                }
+            case PdbResidueType::STRAND:
+                {
+                    pf1  = rectangle_profile;
+                    pfn1 = rectangle_profile_normals;
+                    break;
+                }
+            default:
+                {
+                    pf1  = circle_profile;
+                    pfn1 = circle_profile_normals;
+                    break;
+                }
+        }
+        switch (planes[i].residue_2->type) {
+            case PdbResidueType::COIL:
+                {
+                    pf2  = circle_profile;
+                    pfn2 = circle_profile_normals;
+                    break;
+                }
+            case PdbResidueType::HELIX:
+                {
+                    pf2  = rectangle_profile;
+                    pfn2 = rectangle_profile_normals;
+                    break;
+                }
+            case PdbResidueType::STRAND:
+                {
+                    pf1  = rectangle_profile;
+                    pfn1 = rectangle_profile_normals;
+                    break;
+                }
+            default:
+                {
+                    pf2  = circle_profile;
+                    pfn2 = circle_profile_normals;
+                    break;
+                }
         }
 
         if(i == 0) {
-            auto plane = planes[i];
-            plane.position = 2.f*planes[i].position - planes[i+1].position;
-            createCubicSplineBetweenProfiles(num_points_per_spline + 1, num_splines, circle_profile, plane, planes[i], planes[i+1], planes[i+2], &spline_tube[0][0], previous_normal);
-        } else if (i == num_planes - 2){
-            auto plane = planes[i+1];
-            plane.position = 2.f*planes[i+1].position - planes[i].position;
-            createCubicSplineBetweenProfiles(num_points_per_spline, num_splines, circle_profile, planes[i-1], planes[i], planes[i+1], plane, &spline_tube[1][0], previous_normal);
+            glm::vec3 projected_profile[num_splines];
+            projectPointsOnPlane(num_splines, planes[0].position, planes[0].right, planes[0].normal, pf1, projected_profile);
+            createClosedFacedFromProfile(planes[0].position, num_splines, projected_profile, mesh, false);
+
+            createHermiteSplineNormalsBetweenProfiles(num_points_per_spline + 1, num_splines, pf1, pfn1, pf2, pfn2, 
+                    planes[i], planes[i], planes[i+1], planes[i+2], &spline_tube[0][0], 
+                    &normals_tube[0][0], previous_normal);
         } else {
-            createCubicSplineBetweenProfiles(num_points_per_spline, num_splines, circle_profile, planes[i-1], planes[i], planes[i+1], planes[i+2], &spline_tube[1][0], previous_normal);
+            // Copy previous ring into buffer to ensure continuity
+            for(int i = 0; i < num_splines; i++) {
+                spline_tube [0][i] = spline_tube [num_points_per_spline][i];
+                normals_tube[0][i] = normals_tube[num_points_per_spline][i];
+            }
+
+            if (i == num_planes - 2){
+                createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2,
+                        planes[i-1], planes[i], planes[i+1], planes[i+1], 
+                        &spline_tube[1][0], &normals_tube[1][0], previous_normal);
+
+                glm::vec3 projected_profile[num_splines];
+                projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
+                createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
+            } else {
+                createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2,
+                        planes[i-1], planes[i], planes[i+1], planes[i+1], 
+                        &spline_tube[1][0], &normals_tube[1][0], previous_normal);
+            }
         }
 
-        createClosedSurfaceFromSplines(num_splines, num_points_per_spline + 1, &spline_tube[0][0], mesh);           
+        createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline + 1, &spline_tube[0][0], &normals_tube[0][0], mesh);
     }
+    //createDebugCartesian(planes[num_planes-1].position, 0.5f*planes[num_planes-1].normal, 0.5f*planes[num_planes-1].right, 0.5f*planes[num_planes-1].forward, entities, 0.01);
     createMeshVao(mesh);
 }
 
 glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
-    // @todo make these mesh files to load quicker
+#ifdef USE_ASSIMP
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
-
+#else
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
+#endif
     auto center = glm::vec3(0.0);
 
     // @note Assume first model is the correct one
@@ -615,7 +685,7 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        if(!atom_1.is_heterogen && !atom_2.is_heterogen) continue;
+        if(!atom_1.is_heterogen || !atom_2.is_heterogen) continue;
         encountered_hetatms.insert(b.atom_1_id);
         encountered_hetatms.insert(b.atom_2_id);
 
@@ -652,8 +722,8 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         auto &a = p.second;
         center += a.position;
 
-        if(!a.is_heterogen) continue;
-        encountered_hetatms.insert(a.serial);
+        //if(!a.is_heterogen) continue;
+        //encountered_hetatms.insert(a.serial);
     }
     center /= model.atoms.size();
 
@@ -663,7 +733,6 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         createAtomEntity(atom.position, color, entities, calc_sphere_r);
     }
 
-    // @todo create list of planes of helix from atoms if they are not 1/2 not "CA" or 1 not "O"
     for(const auto &p : model.chains) {
         auto chain = p.second;
         if(chain.residues.size() < 2) continue;
@@ -671,20 +740,17 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         std::vector<PeptidePlane> peptide_planes;
     
         // @todo adjust color to secondary structures
-        printf("Chain %d\n", chain.chain_id);
+        printf("Chain %c\n", chain.chain_id);
+        int plane_i = 0;
         for(int i = 0; i < chain.residues.size() - 1; i++) {
-            auto &plane = peptide_planes.emplace_back();
-
             // Determine plane of connection between residues through peptide bond
-            plane.residue_1 = chain.residues[i];
-            auto &r1 = plane.residue_1;
-            plane.residue_2 = chain.residues[i+1];
-            auto &r2 = plane.residue_2;
+            auto &r1 = chain.residues[i];
+            auto &r2 = chain.residues[i+1];
 
             // @note Peptide bond forms between carboxylic group and amino group.
-            // PDB should guarantee that residues' O, C in peptide bond are named
-            // "O", "CA" so we can determine plane of residue from relationship
-            // between peptides of adjacent amino acids.
+            // PDB should guarantee that residues' label the alpha carbon as "CA"
+            // we just use the "O" of the amine to determine the perpendicular plane 
+            // between adjacent amino acids of protein.
             auto lu_CA1 = r1->atom_name_id.find(" CA ");
             if(lu_CA1  == r1->atom_name_id.end()) continue;
             auto lu_CA2 = r2->atom_name_id.find(" CA ");
@@ -696,15 +762,62 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
             auto CA2 = model.atoms[lu_CA2->second].position;
             auto O1  = model.atoms[lu_O1 ->second].position;
 
-            // Average positions of peptide bonds is approximate center of residue
-            plane.position = (CA1 + CA2) / 2.0f;
+            auto &plane = peptide_planes.emplace_back();
+            plane.residue_1 = r1;
+            plane.residue_2 = r2;
+
+            plane.position = CA1;
 
             plane.forward = glm::normalize(CA2 - CA1);
             plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
-            // To ensure perpendicularity calculate right
-            plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
-            printf("Peptide Plane %d --> %d\n", i, i+1);
+            //// To ensure perpendicularity calculate right
+            //plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
+
+            plane.normal = glm::vec3(0);
+
+            //printf("Peptide Plane %d --> %d\n", i, i+1);
         }
+        if(peptide_planes.size() > 0) {
+            auto plane = peptide_planes[peptide_planes.size() - 1];
+            auto lu_CA2 = plane.residue_2->atom_name_id.find(" CA ");
+            plane.position = model.atoms[lu_CA2->second].position;
+            peptide_planes.emplace_back(plane);
+        }
+
+        constexpr float c = 0.4;
+        for(int i = 1; i < peptide_planes.size() - 1; i++) {
+            auto &p = peptide_planes;
+            p[i].forward = (1-c) * (p[i+1].position - p[i-1].position);
+        }
+        for(int i = 0; i < peptide_planes.size() - 1; i++) {
+            auto &p = peptide_planes;
+            auto n0 = -6.f*p[i].position - 4.f*p[i].forward + 6.f*p[i+1].position - 2.f*p[i+1].forward;
+            n0 = perpendicularComponent(n0, p[i].forward);
+            printf("n0: ");
+            printVector(n0);
+            p[i].normal += n0 / 2.f;
+            auto n1 =  6.f*p[i].position + 2.f*p[i].forward - 6.f*p[i+1].position + 4.f*p[i+1].forward;
+            n1 = perpendicularComponent(n1, p[i+1].forward);
+            printf("n1: ");
+            printVector(n1);
+            p[i+1].normal += n1 / 2.f;
+        }
+        for(int i = 0; i < peptide_planes.size(); i++) {
+            auto &p = peptide_planes;
+            p[i].normal = glm::normalize(p[i].normal);
+            if(i > 0){
+                if(glm::dot(p[i].normal, p[i-1].normal) < 0) {
+                    p[i].normal *= -1;
+                }
+            }
+            p[i].right = glm::normalize(glm::cross(p[i].forward, p[i].normal));
+        }
+        if(peptide_planes.size() > 1) {
+            auto &p = peptide_planes;
+            p[0].normal = glm::normalize(glm::cross(p[0].forward, p[0].right));
+            p[peptide_planes.size()-1].normal = glm::normalize(glm::cross(p[peptide_planes.size()-1].forward, p[peptide_planes.size()-1].right));
+        }
+
         // Flip peptides that are >180 from previous
         for(int i = 1; i < peptide_planes.size(); i++) {
             if(glm::dot(peptide_planes[i].normal, peptide_planes[i - 1].normal) < 0) {
