@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "entities.hpp"
+#include "controls.hpp"
 
 // http://c4.cabrillo.edu/404/ctfile.pdf
 struct MolAtom {
@@ -60,7 +61,7 @@ struct MolFile {
 };
 
 void loadMolFile(MolFile &data, std::string path);
-glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data);
+void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera);
 
 struct PdbAtom {
     // -1 indicates heterogen_model, otherwise index of model
@@ -227,7 +228,7 @@ struct PeptidePlane {
 };
 
 void loadPdbFile(PdbFile &data, std::string path);
-glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data);
+void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera);
 
 // --------------------------------Color LUTs-------------------------------- //
 

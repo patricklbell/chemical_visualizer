@@ -100,15 +100,13 @@ void drawGui(Camera &camera, Entities &entities){
             loadMolFile(molfile, p);
 
             entities.clear();
-            camera.target = createEntitiesFromMolFile(entities, molfile);
-            updateCamera(camera);
+            createEntitiesFromMolFile(entities, molfile, camera);
         } else if(im_file_dialog_type == "loadPdb"){
             PdbFile pdbfile;
             loadPdbFile(pdbfile, p);
 
             entities.clear();
-            camera.target = createEntitiesFromPdbFile(entities, pdbfile);
-            updateCamera(camera);
+            createEntitiesFromPdbFile(entities, pdbfile, camera);
         } else {
             fprintf(stderr, "Unhandled imgui file dialog type %s.\n", p.c_str());
         }

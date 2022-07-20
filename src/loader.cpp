@@ -5,6 +5,7 @@
 #include <set>
 
 #include <glm/glm.hpp>
+#include "controls.hpp"
 #include "glm/detail/func_geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
 
@@ -65,8 +66,8 @@ static const float bond_gap_r = 0.1;
 
 glm::vec3 getColorFromSymbol(std::string symbol) {
     auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
-    if(color_1_lu == symbol_to_color_lut.end()) return glm::normalize(glm::vec3(1.0));
-    else                                        return glm::normalize(color_1_lu->second);
+    if(color_1_lu == symbol_to_color_lut.end()) return glm::vec3(1.0);
+    else                                        return color_1_lu->second / 255.f;
 }
 
 
@@ -127,7 +128,7 @@ void createAtomEntity(const glm::vec3 &pos, const glm::vec3 &col, Entities &enti
     m_e.position = pos;
 }
 
-glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data){
+void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera){
 #ifdef USE_ASSIMP
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
@@ -161,6 +162,8 @@ glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data){
     }
     center /= data.num_atoms;
 
+    camera.target = center;
+    updateCameraView(camera);
     // @alternate method for reserving and also incase double bonds are written as two singles
     //int num_bond_entities;
     //std::unordered_map<int, MolBondType> atom_to_bonds;
@@ -226,7 +229,6 @@ glm::vec3 createEntitiesFromMolFile(Entities &entities, MolFile &data){
                 break;
         }
     }
-    return center;
 }
 
 long hashBondPair(int id_1, int id_2) {
@@ -494,28 +496,8 @@ void loadPdbFile(PdbFile &data, std::string path){
 }
 
 // Mesh which blends between different secondary structures in one polypeptide chain 
-void createPolypeptideEntity(Entities &entities, const std::vector<PeptidePlane> &planes) {
-    auto color = randomColor();
-
-    auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
-
-    // @note middle peptide or similar might reduce floating point errors
-    // need to offset all vertex positions then
-    //m_e.position = planes[0].position;
-    m_e.albedo = randomColor();
-
-    auto &mesh = m_e.mesh;
-	mesh.draw_mode = GL_TRIANGLES;
-	mesh.draw_type = GL_UNSIGNED_SHORT;
-
-    // @todo make parts of mesh different colors
-    mesh.num_materials = 1;
-    mesh.draw_start = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
-    mesh.draw_count = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
-    mesh.draw_start[0] = 0;
-    mesh.draw_count[0] = 0;
-
-    constexpr float r = 0.2;
+void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
+    constexpr float r = 0.25;
     // @todo these should probably 
     constexpr int num_splines = 16, num_points_per_spline = 10;
     glm::vec2 circle_profile[num_splines];
@@ -530,50 +512,90 @@ void createPolypeptideEntity(Entities &entities, const std::vector<PeptidePlane>
 
     glm::vec2 rectangle_profile[num_splines];
     glm::vec2 rectangle_profile_normals[num_splines];
-    createRectangleProfile(num_splines, rectangle_profile, 6.f*r, 2.f*r);
-    createRectangleProfileNormals(num_splines, rectangle_profile_normals, 6.f*r, 2.f*r);
+    createRectangleProfile(num_splines, rectangle_profile, 4.f*r, 1.f*r);
+    createRectangleProfileNormals(num_splines, rectangle_profile_normals, 4.f*r, 1.f*r);
+
+    glm::vec2 ribbon_profile[num_splines];
+    glm::vec2 ribbon_profile_normals[num_splines];
+    createRectangleProfile(num_splines, ribbon_profile, 4.f*r, 0.5f*r);
+    createRectangleProfileNormals(num_splines, ribbon_profile_normals, 4.f*r, 0.5f*r);
+
+    // [0,1] point to exavluate to get arrow head beginning 
+    constexpr float arrow_length = 0.75;
+    glm::vec2 arrow_profile[num_splines];
+    glm::vec2 arrow_profile_normals[num_splines];
+    createRectangleProfile(num_splines, arrow_profile, 9.f*r, 1.f*r);
+    createRectangleProfileNormals(num_splines, arrow_profile_normals, 9.f*r, 1.f*r);
+    //glm::vec2 arrow_tip_profile[num_splines];
+    //glm::vec2 arrow_tip_profile_normals[num_splines];
+    //createRectangleProfile(num_splines, arrow_tip_profile, 0.f*r, 1.f*r);
+    //createRectangleProfileNormals(num_splines, arrow_tip_profile_normals, 0.f*r, 1.f*r);
 
     // @todo Handle small number of planes
     if(planes.size() < 3) return;
     
     // Points describing spline tube's surface
-    glm::vec3 spline_tube [num_points_per_spline + 1][num_splines];
-    glm::vec3 normals_tube[num_points_per_spline + 1][num_splines];
+    glm::vec3 spline_tube [num_points_per_spline][num_splines];
+    glm::vec3 normals_tube[num_points_per_spline][num_splines];
 
     const int num_planes = planes.size();
 
-    glm::vec3 previous_normal = glm::vec3(0,0,0);
+    glm::vec3 previous_normal = planes[0].normal;
+    auto helix_color = glm::vec3(255, 105, 180) / 255.f;
+    auto strand_color = glm::vec3(255, 211, 0) / 255.f;
+    auto coil_color = glm::vec3(220, 220, 220) / 255.f;
     for(int i = 0; i < num_planes - 1; i++) {
-        //createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.01);
+        auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
+
+        // @note middle peptide or similar might reduce floating point errors
+        // need to offset all vertex positions then
+        //m_e.position = planes[i].position;
+
+        auto &mesh = m_e.mesh;
+        mesh.draw_mode = GL_TRIANGLES;
+        mesh.draw_type = GL_UNSIGNED_SHORT;
+
+        // @todo make parts of mesh different colors
+        mesh.num_materials = 1;
+        mesh.draw_start = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
+        mesh.draw_count = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
+        mesh.draw_start[0] = 0;
+        mesh.draw_count[0] = 0;
+
+        //createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.02);
 
         glm::vec2 *pf1, *pf2, *pfn1, *pfn2;
         switch (planes[i].residue_1->type) {
             case PdbResidueType::COIL:
                 {
+                    m_e.albedo = coil_color;
                     pf1  = circle_profile;
                     pfn1 = circle_profile_normals;
                     break;
                 }
             case PdbResidueType::HELIX:
                 {
-                    pf1  = rectangle_profile;
-                    pfn1 = rectangle_profile_normals;
+                    m_e.albedo = helix_color;
+                    pf1  = ribbon_profile;
+                    pfn1 = ribbon_profile_normals;
                     break;
                 }
             case PdbResidueType::STRAND:
                 {
+                    m_e.albedo = strand_color;
                     pf1  = rectangle_profile;
                     pfn1 = rectangle_profile_normals;
                     break;
                 }
             default:
                 {
+                    fprintf(stderr, "unknown residue type 1\n");
                     pf1  = circle_profile;
                     pfn1 = circle_profile_normals;
                     break;
                 }
         }
-        switch (planes[i].residue_2->type) {
+        switch (planes[i+1].residue_1->type) {
             case PdbResidueType::COIL:
                 {
                     pf2  = circle_profile;
@@ -582,61 +604,77 @@ void createPolypeptideEntity(Entities &entities, const std::vector<PeptidePlane>
                 }
             case PdbResidueType::HELIX:
                 {
-                    pf2  = rectangle_profile;
-                    pfn2 = rectangle_profile_normals;
+                    pf2  = ribbon_profile;
+                    pfn2 = ribbon_profile_normals;
                     break;
                 }
             case PdbResidueType::STRAND:
                 {
-                    pf1  = rectangle_profile;
-                    pfn1 = rectangle_profile_normals;
+                    pf2  = rectangle_profile;
+                    pfn2 = rectangle_profile_normals;
                     break;
                 }
             default:
                 {
+                    fprintf(stderr, "unknown residue type 2\n");
                     pf2  = circle_profile;
                     pfn2 = circle_profile_normals;
                     break;
                 }
         }
 
+        int p1_i = i-1;
+        int p4_i = i+2;
         if(i == 0) {
             glm::vec3 projected_profile[num_splines];
             projectPointsOnPlane(num_splines, planes[0].position, planes[0].right, planes[0].normal, pf1, projected_profile);
             createClosedFacedFromProfile(planes[0].position, num_splines, projected_profile, mesh, false);
 
-            createHermiteSplineNormalsBetweenProfiles(num_points_per_spline + 1, num_splines, pf1, pfn1, pf2, pfn2, 
-                    planes[i], planes[i], planes[i+1], planes[i+2], &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal);
-        } else {
-            // Copy previous ring into buffer to ensure continuity
-            for(int i = 0; i < num_splines; i++) {
-                spline_tube [0][i] = spline_tube [num_points_per_spline][i];
-                normals_tube[0][i] = normals_tube[num_points_per_spline][i];
-            }
+            p1_i = i;
+        } else if(i == num_planes - 2) {
+            glm::vec3 projected_profile[num_splines];
+            projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
+            createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
 
-            if (i == num_planes - 2){
-                createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2,
-                        planes[i-1], planes[i], planes[i+1], planes[i+1], 
-                        &spline_tube[1][0], &normals_tube[1][0], previous_normal);
-
-                glm::vec3 projected_profile[num_splines];
-                projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
-                createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
-            } else {
-                createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2,
-                        planes[i-1], planes[i], planes[i+1], planes[i+1], 
-                        &spline_tube[1][0], &normals_tube[1][0], previous_normal);
-            }
+            p4_i = i+1;
         }
 
-        createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline + 1, &spline_tube[0][0], &normals_tube[0][0], mesh);
+
+        if(planes[i].residue_1->type == PdbResidueType::STRAND && planes[i+1].residue_1->type == PdbResidueType::COIL) {
+            auto arrow_base_plane = createPartialHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, 
+                    rectangle_profile, rectangle_profile_normals, rectangle_profile, rectangle_profile_normals, 
+                    planes[p1_i], planes[i], planes[i+1], planes[p4_i], 
+                    &spline_tube[0][0], 
+                    &normals_tube[0][0], previous_normal, arrow_length);
+            createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+
+            glm::vec3 projected_profile[num_splines];
+            projectPointsOnPlane(num_splines, arrow_base_plane.position, arrow_base_plane.normal, arrow_base_plane.right, 
+                    arrow_profile, projected_profile);
+            createClosedFacedFromProfile(arrow_base_plane.position, num_splines, projected_profile, mesh, true);
+
+            createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
+                    arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
+                    arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
+                    &spline_tube[0][0], 
+                    &normals_tube[0][0], previous_normal);
+            createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
+
+            //projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, 
+            //        circle_profile, projected_profile);
+            //createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
+        } else {
+            createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
+                    planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
+                    &normals_tube[0][0], previous_normal);
+            createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+        }
+        createMeshVao(mesh);
     }
     //createDebugCartesian(planes[num_planes-1].position, 0.5f*planes[num_planes-1].normal, 0.5f*planes[num_planes-1].right, 0.5f*planes[num_planes-1].forward, entities, 0.01);
-    createMeshVao(mesh);
 }
 
-glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
+void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera){
 #ifdef USE_ASSIMP
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
     loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
@@ -644,10 +682,9 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
     readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
     readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
 #endif
-    auto center = glm::vec3(0.0);
 
     // @note Assume first model is the correct one
-    if (data.models.size() == 0) return glm::vec3(0,0,0);
+    if (data.models.size() == 0) return;
     auto &model = data.models[0];
 
     static const float relative_cylinder_size = 0.05;
@@ -689,7 +726,7 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         encountered_hetatms.insert(b.atom_1_id);
         encountered_hetatms.insert(b.atom_2_id);
 
-        printf("Hetero Bond %d --> %d with type %u\n", b.atom_1_id, b.atom_2_id, type);
+        //printf("Hetero Bond %d --> %d with type %u\n", b.atom_1_id, b.atom_2_id, type);
         auto color_1 = getColorFromSymbol(atom_1.symbol);
         auto color_2 = getColorFromSymbol(atom_2.symbol);
 
@@ -718,6 +755,7 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
                 break;
         }
     }
+    auto center = glm::vec3(0.0);
     for(const auto &p : model.atoms) {
         auto &a = p.second;
         center += a.position;
@@ -726,6 +764,17 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         //encountered_hetatms.insert(a.serial);
     }
     center /= model.atoms.size();
+    float max_distance = 0.0;
+    for(const auto &p : model.atoms) {
+        auto &a = p.second;
+        auto dist = glm::length(a.position - center);
+        if(dist > max_distance) {
+            max_distance = dist;
+        }
+    }
+    camera.target = center;
+    camera.position = camera.target + glm::normalize(camera.position - camera.target)*max_distance*2.2f;
+    updateCameraView(camera);
 
     for(const auto &atom_id : encountered_hetatms) {
         auto &atom = model.atoms[atom_id];
@@ -740,7 +789,7 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
         std::vector<PeptidePlane> peptide_planes;
     
         // @todo adjust color to secondary structures
-        printf("Chain %c\n", chain.chain_id);
+        //printf("Chain %c\n", chain.chain_id);
         int plane_i = 0;
         for(int i = 0; i < chain.residues.size() - 1; i++) {
             // Determine plane of connection between residues through peptide bond
@@ -755,12 +804,12 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
             if(lu_CA1  == r1->atom_name_id.end()) continue;
             auto lu_CA2 = r2->atom_name_id.find(" CA ");
             if(lu_CA2  == r2->atom_name_id.end()) continue;
-            auto lu_O1  = r1->atom_name_id.find(" O  ");
-            if(lu_O1   == r1->atom_name_id.end()) continue;
+            //auto lu_O1  = r1->atom_name_id.find(" O  ");
+            //if(lu_O1   == r1->atom_name_id.end()) continue;
             
             auto CA1 = model.atoms[lu_CA1->second].position;
             auto CA2 = model.atoms[lu_CA2->second].position;
-            auto O1  = model.atoms[lu_O1 ->second].position;
+            //auto O1  = model.atoms[lu_O1 ->second].position;
 
             auto &plane = peptide_planes.emplace_back();
             plane.residue_1 = r1;
@@ -769,7 +818,7 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
             plane.position = CA1;
 
             plane.forward = glm::normalize(CA2 - CA1);
-            plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
+            //plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
             //// To ensure perpendicularity calculate right
             //plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
 
@@ -783,8 +832,9 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
             plane.position = model.atoms[lu_CA2->second].position;
             peptide_planes.emplace_back(plane);
         }
-
-        constexpr float c = 0.4;
+        // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
+        // cardinal spline calculation
+        constexpr float c = 0.25;
         for(int i = 1; i < peptide_planes.size() - 1; i++) {
             auto &p = peptide_planes;
             p[i].forward = (1-c) * (p[i+1].position - p[i-1].position);
@@ -793,13 +843,9 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
             auto &p = peptide_planes;
             auto n0 = -6.f*p[i].position - 4.f*p[i].forward + 6.f*p[i+1].position - 2.f*p[i+1].forward;
             n0 = perpendicularComponent(n0, p[i].forward);
-            printf("n0: ");
-            printVector(n0);
             p[i].normal += n0 / 2.f;
             auto n1 =  6.f*p[i].position + 2.f*p[i].forward - 6.f*p[i+1].position + 4.f*p[i+1].forward;
             n1 = perpendicularComponent(n1, p[i+1].forward);
-            printf("n1: ");
-            printVector(n1);
             p[i+1].normal += n1 / 2.f;
         }
         for(int i = 0; i < peptide_planes.size(); i++) {
@@ -829,6 +875,4 @@ glm::vec3 createEntitiesFromPdbFile(Entities &entities, PdbFile &data){
 
         createPolypeptideEntity(entities, peptide_planes);
     }
-
-    return center;
 }

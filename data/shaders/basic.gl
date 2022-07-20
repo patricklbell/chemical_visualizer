@@ -151,7 +151,7 @@ void main() {
     vec3 ambient = albedo * ao;
     vec3 hdr_color = ambient + brdfSchlickGGX(position, normal, albedo, -sun_direction, sun_color);
 #endif
-    const float gamma = 1.6;
+    const float gamma = 1.5;
 
     // reinhard tone mapping
     vec3 mapped = hdr_color / (hdr_color + vec3(1.0)); 

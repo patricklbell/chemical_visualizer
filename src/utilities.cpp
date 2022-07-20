@@ -484,13 +484,10 @@ void createHermiteSplineBetweenProfiles(const int num_points_per_spline, const i
     }
 }
 
-void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
+PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal, float t) {
     auto &pp0 = p2.position;
     auto &pp1 = p3.position;
 
-    // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
-    // cardinal spline calculation
-    constexpr float c = 0.5;
     auto &m0 = p2.forward;
     auto &m1 = p3.forward;
 
@@ -504,19 +501,19 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
     glm::vec2 pf[num_splines];
     glm::vec2 pfn[num_splines];
     for(int i = 0; i < num_points_per_spline; i++) {
-        auto t = (float)i / (num_points_per_spline-1);
-        auto t2 = t*t;
+        auto t1 = ((float)i / (num_points_per_spline-1))*t;
+        auto t2 = t1*t1;
         auto t3 = t*t2;
 
         auto p = (2*t3-3*t2+1)*pp0 
-               + (t3-2*t2+t)*m0
+               + (t3-2*t2+t1)*m0
                + (-2*t3+3*t2)*pp1
                + (t3-t2)*m1;
 
-        auto tn = (6*t2-6*t)*pp0 
-                + (3*t2-4*t+1)*m0
-                + (-6*t2+6*t)*pp1
-                + (3*t2-2*t)*m1;
+        auto tn = (6*t2-6*t1)*pp0 
+                + (3*t2-4*t1+1)*m0
+                + (-6*t2+6*t1)*pp1
+                + (3*t2-2*t1)*m1;
 
         tn = glm::normalize(tn);
         //auto bn = perpendicularComponent(bref, tn);
@@ -529,8 +526,66 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
         auto n = glm::cross(bn, tn);
 
         for(int i = 0; i < num_splines; ++i) {
-            pf[i] =  glm::mix(pf1[i],  pf2[i],  t3);
-            pfn[i] = glm::normalize(glm::mix(pfn1[i], pfn2[i], t3));
+            pf[i] =  glm::mix(pf1[i],  pf2[i],  t1);
+            pfn[i] = glm::normalize(glm::mix(pfn1[i], pfn2[i], t1));
+        }
+
+        projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
+        projectPointsOnPlane(num_splines, p, bn, n, pfn, &normals_tube[num_splines*i]);
+
+        if(i == num_points_per_spline - 1) {
+            return PeptidePlane{p3.residue_1, p3.residue_2, p, bn, tn, n, false};
+        }
+        prev_normal = n;
+    }
+    return PeptidePlane();
+}
+
+
+void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
+    auto &pp0 = p2.position;
+    auto &pp1 = p3.position;
+
+    auto &m0 = p2.forward;
+    auto &m1 = p3.forward;
+
+    auto &n0 = p2.normal;
+    auto &n1 = p3.normal;
+
+    auto &b0 = p2.right;
+    auto &b1 = p3.right;
+       
+    auto bref = (b0 + b1) / 2.f;
+    glm::vec2 pf[num_splines];
+    glm::vec2 pfn[num_splines];
+    for(int i = 0; i < num_points_per_spline; i++) {
+        auto t1 = (float)i / (num_points_per_spline-1);
+        auto t2 = t1*t1;
+        auto t3 = t1*t2;
+
+        auto p = (2*t3-3*t2+1)*pp0 
+               + (t3-2*t2+t1)*m0
+               + (-2*t3+3*t2)*pp1
+               + (t3-t2)*m1;
+
+        auto tn = (6*t2-6*t1)*pp0 
+                + (3*t2-4*t1+1)*m0
+                + (-6*t2+6*t1)*pp1
+                + (3*t2-2*t1)*m1;
+
+        tn = glm::normalize(tn);
+        //auto bn = perpendicularComponent(bref, tn);
+        glm::vec3 bn;
+        if(glm::length(prev_normal) > 0.001) {
+            bn = glm::normalize(glm::cross(tn, prev_normal));
+        } else {
+            bn = perpendicularComponent(bref, tn);
+        }
+        auto n = glm::cross(bn, tn);
+
+        for(int i = 0; i < num_splines; ++i) {
+            pf[i] =  glm::mix(pf1[i],  pf2[i],  t1);
+            pfn[i] = glm::normalize(glm::mix(pfn1[i], pfn2[i], t1));
         }
 
         projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
@@ -724,11 +779,6 @@ void createRectangleProfile(const int n, glm::vec2 *points, float w=1.0, float h
         points[4*m + i] = points[4*m - i - 1];
         points[4*m + i].y *= -1;
     }
-
-    printf("Rectangle profile:\n");
-    for(int i = 0; i < n; i++) {
-        printVector(points[i]);
-    }
 }
 
 void createRectangleProfileNormals(const int n, glm::vec2 *normals, float w=1.0, float h=1.0) {
@@ -805,8 +855,6 @@ void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::v
     if(flipped) n = calculateTriangleNormalCCW(center_point, profile[0], profile[1]);
     else        n = calculateTriangleNormalCCW(center_point, profile[1], profile[0]);
 
-    printf("Normal "); // @debug
-    printVector(n); // @debug
     for(int i = 0; i < num_triangles; i++) {
         mesh.vertices[vertex_offset + i + 1] = toModelSpace(profile[i]);
         mesh.normals [vertex_offset + i + 1] = toModelSpace(n);

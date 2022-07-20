@@ -128,7 +128,7 @@ int main() {
     loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
    
     Entities entities;
-    camera.target = createEntitiesFromPdbFile(entities, pdb_file);
+    createEntitiesFromPdbFile(entities, pdb_file, camera);
 
     initGui();
     initControls();

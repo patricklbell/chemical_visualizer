@@ -111,7 +111,6 @@ bool readMeshFile(Mesh &mesh, std::string path){
     }
 
     fread(&mesh.num_indices, sizeof(int), 1, f);
-    printf("Num of indices %d\n", mesh.num_indices);
     mesh.indices = (unsigned short *)malloc(sizeof(unsigned short)*mesh.num_indices);
     fread(mesh.indices, sizeof(unsigned short), mesh.num_indices, f);
 
@@ -120,7 +119,6 @@ bool readMeshFile(Mesh &mesh, std::string path){
     
     // @todo For now just assume all attributes
     fread(&mesh.num_vertices, sizeof(int), 1, f);
-    printf("Num of vertices %d\n", mesh.num_vertices);
 
     mesh.vertices = (glm::fvec3*)malloc(sizeof(glm::fvec3)*mesh.num_vertices);
     mesh.normals  = (glm::fvec3*)malloc(sizeof(glm::fvec3)*mesh.num_vertices);
@@ -132,7 +130,6 @@ bool readMeshFile(Mesh &mesh, std::string path){
 	mesh.draw_type = GL_UNSIGNED_SHORT;
 
     fread(&mesh.num_materials, sizeof(int), 1, f);
-    printf("Num of materials %d\n", mesh.num_materials);
 
     mesh.draw_start = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
     mesh.draw_count = (GLint*)malloc(sizeof(GLint) * mesh.num_materials);
