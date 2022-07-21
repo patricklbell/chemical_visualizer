@@ -80,8 +80,6 @@ set(SOURCES
 # YCM generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_BUILD_TYPE Debug)
-
 add_executable (chem_viz ${SOURCES})
 
 target_link_libraries(chem_viz 
@@ -92,8 +90,13 @@ if(USE_ASSIMP)
     set_target_properties(chem_viz PROPERTIES COMPILE_DEFINITIONS "USE_ASSIMP")
 endif()
 
+if(MSVC)
+add_custom_target(copy-runtime-files ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/data)
+else()
 add_custom_target(copy-runtime-files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
+endif()
 
 # Copy compile_commands.json
 IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
