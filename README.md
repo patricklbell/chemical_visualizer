@@ -39,6 +39,7 @@ git clone https://github.com/patricklbell/chemical_visualizer.git
 ```
 Navigate to the root of source, create a build directory and build with CMake:
 ```
+cd chemical_visualizer
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ./..
