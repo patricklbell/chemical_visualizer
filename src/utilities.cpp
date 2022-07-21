@@ -430,57 +430,53 @@ void createCubicSplineBetweenProfiles(const int num_points_per_spline, const int
     }
 }
 
-// @todo make this function correct after finishing normal version
-void createHermiteSplineBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *profile, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal) {
-    auto &pp1 = p1.position;
-    auto &pp2 = p2.position;
-    auto &pp3 = p3.position;
-    auto &pp4 = p4.position;
+void createHermiteSplineBetweenProfiles(const int num_points_per_spline, const int num_splines,  glm::vec2 *pf1, glm::vec2 *pf2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal) {
+    auto &pp0 = p2.position;
+    auto &pp1 = p3.position;
 
-    // hermite interpolation
-    const glm::vec3 tension(0.5), bias(0), id(1);
+    auto &m0 = p2.forward;
+    auto &m1 = p3.forward;
 
-    glm::vec3 m0, m1;
-    m0  = (pp2-pp1)*(id+bias)*(id-tension)/2.f;
-    m0 += (pp3-pp2)*(id-bias)*(id-tension)/2.f;
-    m1  = (pp3-pp2)*(id+bias)*(id-tension)/2.f;
-    m1 += (pp4-pp3)*(id-bias)*(id-tension)/2.f;
+    auto &n0 = p2.normal;
+    auto &n1 = p3.normal;
 
-    glm::vec3 a0, a1, a2, a3, _a0, _a1, _a2, _a3, __a0, __a1, __a2, __a3;
+    auto &b0 = p2.right;
+    auto &b1 = p3.right;
+       
+    auto bref = (b0 + b1) / 2.f;
+    glm::vec2* pf = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
+    glm::vec2* pfn = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
-        auto t = glm::vec3((float)i / (num_points_per_spline-1));
-        auto t2 = t*t;
-        auto t3 = t2*t;
+        auto t1 = (float)i / (num_points_per_spline-1);
+        auto t2 = t1*t1;
+        auto t3 = t1*t2;
 
-        a0 =  2.f*t*t*t - 3.f*t*t + id;
-        a1 =      t*t*t - 2.f*t*t + t;
-        a2 =      t*t*t -     t*t;
-        a3 = -2.f*t*t*t + 3.f*t*t;
+        auto p = (2*t3-3*t2+1)*pp0 
+               + (t3-2*t2+t1)*m0
+               + (-2*t3+3*t2)*pp1
+               + (t3-t2)*m1;
 
-        auto pp = a0*pp1+a1*m0+a2*m1+a3*pp2;
+        auto tn = (6*t2-6*t1)*pp0 
+                + (3*t2-4*t1+1)*m0
+                + (-6*t2+6*t1)*pp1
+                + (3*t2-2*t1)*m1;
 
-        _a0 =  6.f*t*t - 6.f*t;
-        _a1 =  3.f*t*t - 4.f*t + id;
-        _a2 =  3.f*t*t - 2.f*t;
-        _a3 = -6.f*t*t + 6.f*t;
-        auto pt = glm::normalize(_a0*pp1+_a1*m0+_a2*m1+_a3*pp2);
+        tn = glm::normalize(tn);
+        //auto bn = perpendicularComponent(bref, tn);
+        glm::vec3 bn;
+        if(glm::length(prev_normal) > 0.001) {
+            bn = glm::normalize(glm::cross(tn, prev_normal));
+        } else {
+            bn = perpendicularComponent(bref, tn);
+        }
+        auto n = glm::cross(bn, tn);
 
-        __a0 =  12.f*t - 6.f*id;
-        __a1 =   6.f*t - 4.f*id;
-        __a2 =   6.f*t - 2.f*id;
-        __a3 = -12.f*t + 6.f*id;
-        auto pa = glm::normalize(__a0*pp1+__a1*m0+__a2*m1+__a3*pp2);
-
-        auto pbn = glm::normalize(glm::cross(pt, pa));
-        auto pn =  glm::normalize(glm::cross(pt, pbn));
-
-        if(glm::dot(pn, prev_normal) < 0) {
-            pn *= -1.f;
-            pbn *= -1.f;
+        for(int i = 0; i < num_splines; ++i) {
+            pf[i] =  glm::mix(pf1[i],  pf2[i],  t1);
         }
 
-        projectPointsOnPlane(num_splines, pp, pn, pbn, profile, &spline_tube[num_splines*i]);
-        prev_normal = pn;
+        projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
+        prev_normal = n;
     }
 }
 
@@ -627,107 +623,6 @@ void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spli
     }
 }
 
-//void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
-//    glm::vec2 pf[num_splines];
-//    glm::vec2 pfn[num_splines];
-//
-//    auto n1 = (float)num_points_per_spline;
-//    auto n2 = n1*n1;
-//    auto n3 = n1*n2;
-//
-//    auto s = glm::mat4x4(
-//        6 / n3, 0, 0, 0,
-//		6 / n3, 2 / n2, 0, 0,
-//		1 / n3, 1 / n2, 1 / n1, 0,
-//		0, 0, 0, 1
-//    );
-//    const auto b = (1/6.f) * glm::mat4x4(
-//        -1, 3, -3, 1,
-//		3, -6, 3, 0,
-//		-3, 0, 3, 0,
-//		1, 4, 1, 0
-//    );
-//
-//    const auto mc = s*b;
-//
-//    glm::vec3 ppf1[num_splines];
-//    projectPointsOnPlane(num_splines, p1.position, p1.right, p1.normal, pf1, ppf1);
-//    glm::vec3 ppf2[num_splines];
-//    projectPointsOnPlane(num_splines, p2.position, p2.right, p2.normal, pf1, ppf2);
-//    glm::vec3 ppf3[num_splines];
-//    projectPointsOnPlane(num_splines, p3.position, p3.right, p3.normal, pf2, ppf3);
-//    glm::vec3 ppf4[num_splines];
-//    projectPointsOnPlane(num_splines, p4.position, p4.right, p4.normal, pf2, ppf4);
-//    glm::vec3 ppfn1[num_splines];
-//    projectPointsOnPlane(num_splines, p1.position, p1.right, p1.normal, pfn1, ppfn1);
-//    glm::vec3 ppfn2[num_splines];
-//    projectPointsOnPlane(num_splines, p2.position, p2.right, p2.normal, pfn1, ppfn2);
-//    glm::vec3 ppfn3[num_splines];
-//    projectPointsOnPlane(num_splines, p3.position, p3.right, p3.normal, pfn2, ppfn3);
-//    glm::vec3 ppfn4[num_splines];
-//    projectPointsOnPlane(num_splines, p4.position, p4.right, p4.normal, pfn2, ppfn4);
-//    for(int i = 0; i < num_splines; i++) {
-//        auto pp1 = ppf1[i];
-//        auto pp2 = ppf2[i];
-//        auto pp3 = ppf3[i];
-//        auto pp4 = ppf4[i];
-//
-//        const auto g = glm::mat4x4(
-//            pp1.x, pp1.y, pp1.z, 1,
-//            pp2.x, pp2.y, pp2.z, 1,
-//            pp3.x, pp3.y, pp3.z, 1,
-//            pp4.x, pp4.y, pp4.z, 1
-//        );
-//        auto m = g*mc;
-//
-//        spline_tube[0 + i] = glm::vec3(m[3][0]/m[3][3], m[3][1]/m[3][3], m[3][2]/m[3][3]);
-//        for(int j = 1; j < num_points_per_spline; j++) {
-//            m[3][0] += m[2][0];
-//            m[3][1] += m[2][1];
-//            m[3][2] += m[2][2];
-//            m[3][3] += m[2][3];
-//            m[2][0] += m[1][0];
-//            m[2][1] += m[1][1];
-//            m[2][2] += m[1][2];
-//            m[2][3] += m[1][3];
-//            m[1][0] += m[0][0];
-//            m[1][1] += m[0][1];
-//            m[1][2] += m[0][2];
-//            m[1][3] += m[0][3];
-//            spline_tube[j*num_splines + i] = glm::vec3(m[3][0]/m[3][3], m[3][1]/m[3][3], m[3][2]/m[3][3]);
-//        }
-//
-//        auto pn1 = ppfn1[i];
-//        auto pn2 = ppfn2[i];
-//        auto pn3 = ppfn3[i];
-//        auto pn4 = ppfn4[i];
-//
-//        const auto gn = glm::mat4x4(
-//            pp1.x, pp1.y, pp1.z, 1,
-//            pp2.x, pp2.y, pp2.z, 1,
-//            pp3.x, pp3.y, pp3.z, 1,
-//            pp4.x, pp4.y, pp4.z, 1
-//        );
-//        auto mn = gn*mc;
-//
-//        normals_tube[0 + i] = glm::vec3(mn[3][0]/mn[3][3], mn[3][1]/mn[3][3], mn[3][2]/mn[3][3]);
-//        for(int j = 1; j < num_points_per_spline; j++) {
-//            mn[3][0] += mn[2][0];
-//            mn[3][1] += mn[2][1];
-//            mn[3][2] += mn[2][2];
-//            mn[3][3] += mn[2][3];
-//            mn[2][0] += mn[1][0];
-//            mn[2][1] += mn[1][1];
-//            mn[2][2] += mn[1][2];
-//            mn[2][3] += mn[1][3];
-//            mn[1][0] += mn[0][0];
-//            mn[1][1] += mn[0][1];
-//            mn[1][2] += mn[0][2];
-//            mn[1][3] += mn[0][3];
-//            normals_tube[j*num_splines + i] = glm::vec3(mn[3][0]/mn[3][3], mn[3][1]/mn[3][3], mn[3][2]/mn[3][3]);
-//        }
-//    }
-//}
 void createCircularProfile(const int n, glm::vec2 *points, float r=1.0) {
     for(int i = 0; i < n; i++) {
         // t : [0, 2π]
@@ -749,7 +644,6 @@ void createEllipseProfile(const int n, glm::vec2 *points, float r1=1.0, float r2
         points[i].y = r2*glm::sin(t);
     }
 }
-
 void createEllipseProfileNormals(const int n, glm::vec2 *normals, float r1=1.0, float r2=1.0) {
     createEllipseProfile(n, normals, r1, r2);
 }
@@ -780,7 +674,6 @@ void createRectangleProfile(const int n, glm::vec2 *points, float w=1.0, float h
         points[4*m + i].y *= -1;
     }
 }
-
 void createRectangleProfileNormals(const int n, glm::vec2 *normals, float w=1.0, float h=1.0) {
     auto c = glm::vec2(w/2, h/2);
     auto wc = glm::vec2(w/2, 0);
@@ -805,22 +698,6 @@ void createRectangleProfileNormals(const int n, glm::vec2 *normals, float w=1.0,
         normals[4*m + i].y *= -1;
     }
 }
-
-
-//void createRoundedRectangleProfile(const int n, glm::vec2 *points, float w=1.0, float h=1.0, float r=0.1) {
-//    for(int i = 0; i < n; i++) {
-//        // t : [0, 2π]
-//        float t = ((float)i / n) * 2.0 * PI;
-//        points[i].x = r1*glm::cos(t);
-//        points[i].y = r2*glm::sin(t);
-//    }
-//}
-//
-//void createRoundedRectangleProfileNormals(const int n, glm::vec2 *normals, float w=1.0, float h=1.0, float r=0.1) {
-//
-//}
-
-
 
 // Transforms 2D points onto 3D plane
 void projectPointsOnPlane(int num, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points) {

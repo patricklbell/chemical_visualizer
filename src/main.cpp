@@ -28,11 +28,10 @@ std::string exepath;
 
 #include "globals.hpp"
 #include "shader.hpp"
-#include "texture.hpp"
 #include "utilities.hpp"
 #include "graphics.hpp"
 #include "controls.hpp"
-#include "editor.hpp"
+#include "ui.hpp"
 #include "assets.hpp"
 #include "entities.hpp"
 #include "loader.hpp"

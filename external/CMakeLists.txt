@@ -53,11 +53,3 @@ target_link_libraries(GLEW_210
 	${OPENGL_LIBRARY}
 	${EXTRA_LIBS}
 )
-
-
-### ASSIMP ###
-# AssImp already has a CMakeLists.txt so let's use these
-
-if(USE_ASSIMP)
-    add_subdirectory( assimp-5.1.5 )
-endif()

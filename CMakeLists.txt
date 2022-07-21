@@ -9,6 +9,7 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 endif(MSVC)
 
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL 33 REQUIRED)
 
 if( CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR )
@@ -29,7 +30,6 @@ include_directories(
 	external/glm-0.9.7.1/
 	external/glew-2.1.0/include/
 	external/imgui/include/
-	external/stb/
 	include/
 )
 
@@ -39,15 +39,6 @@ set(ALL_LIBS
 	GLEW_210
 )
 
-option(USE_ASSIMP "Compile with assimp to load obj not custom mesh file" OFF)
-
-if(USE_ASSIMP)
-    include_directories(
-	    external/assimp-5.1.5/include/
-    )
-    list(APPEND ALL_LIBS assimp)
-endif()
-
 add_definitions(
 	-DTW_STATIC
 	-DTW_NO_LIB_PRAGMA
@@ -55,7 +46,6 @@ add_definitions(
 	-DGLEW_STATIC
 	-D_CRT_SECURE_NO_WARNINGS
 )
-
 
 set(SOURCES 
     external/imgui/imgui_draw.cpp
@@ -67,10 +57,9 @@ set(SOURCES
 
 	src/main.cpp
 	src/shader.cpp
-	src/texture.cpp
 	src/utilities.cpp
 	src/controls.cpp
-	src/editor.cpp
+	src/ui.cpp
 	src/graphics.cpp
 	src/assets.cpp
 	src/entities.cpp
@@ -86,10 +75,6 @@ target_link_libraries(chem_viz
 	${ALL_LIBS}
 )
 
-if(USE_ASSIMP)
-    set_target_properties(chem_viz PROPERTIES COMPILE_DEFINITIONS "USE_ASSIMP")
-endif()
-
 if(MSVC)
 add_custom_target(copy-runtime-files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/data)
@@ -98,10 +83,12 @@ add_custom_target(copy-runtime-files ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data)
 endif()
 
-# Copy compile_commands.json
-IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
-  EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
-  )
-ENDIF()
+option(COPY_COMPILE_COMMANDS "Copies compile_commands.json to root of source tree" ON)
+if(COPY_COMPILE_COMMANDS)
+    if( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
+        EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
+          ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
+        )
+    endif()
+endif()

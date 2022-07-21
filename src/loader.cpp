@@ -544,15 +544,15 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     createRectangleProfileNormals(num_splines, ribbon_profile_normals, 5.f*r, 0.5f*r);
 
     // [0,1] point to exavluate to get arrow head beginning 
-    constexpr float arrow_length = 0.75;
+    constexpr float arrow_length = 0.7;
     glm::vec2 arrow_profile[num_splines];
     glm::vec2 arrow_profile_normals[num_splines];
     createRectangleProfile(num_splines, arrow_profile, 10.f*r, 1.5f*r);
     createRectangleProfileNormals(num_splines, arrow_profile_normals, 10.f*r, 1.5f*r);
-    //glm::vec2 arrow_tip_profile[num_splines];
-    //glm::vec2 arrow_tip_profile_normals[num_splines];
-    //createRectangleProfile(num_splines, arrow_tip_profile, 0.f*r, 1.f*r);
-    //createRectangleProfileNormals(num_splines, arrow_tip_profile_normals, 0.f*r, 1.f*r);
+    glm::vec2 arrow_tip_profile[num_splines];
+    glm::vec2 arrow_tip_profile_normals[num_splines];
+    createRectangleProfile(num_splines, arrow_tip_profile, 0.f*r, 1.f*r);
+    createRectangleProfileNormals(num_splines, arrow_tip_profile_normals, 0.f*r, 1.f*r);
 
     // @todo Handle small number of planes
     if(planes.size() < 3) return;
@@ -655,10 +655,6 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 
             p1_i = i;
         } else if(i == num_planes - 2) {
-            glm::vec3 projected_profile[num_splines];
-            projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
-            createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
-
             p4_i = i+1;
         }
 
@@ -676,17 +672,32 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                     arrow_profile, projected_profile);
             createClosedFacedFromProfile(arrow_base_plane.position, num_splines, projected_profile, mesh, true);
 
-            createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
-                    arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
-                    arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
-                    &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal);
+            if(i == num_planes - 2) {
+                // hack to make longer arrows at end points
+                planes[i+1].position += arrow_base_plane.forward;
+                createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
+                        arrow_profile, arrow_profile_normals, arrow_tip_profile, arrow_tip_profile_normals, 
+                        arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
+                        &spline_tube[0][0], 
+                        &normals_tube[0][0], previous_normal);
+            } else {
+                createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
+                        arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
+                        arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
+                        &spline_tube[0][0], 
+                        &normals_tube[0][0], previous_normal);
+            }
             createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
 
             //projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, 
             //        circle_profile, projected_profile);
             //createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
         } else {
+            if(i == num_planes - 2) {
+                glm::vec3 projected_profile[num_splines];
+                projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
+                createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
+            }
             createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
                     planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
                     &normals_tube[0][0], previous_normal);
@@ -850,7 +861,7 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
             plane.residue_1 = r1;
             plane.residue_2 = r2;
 
-            plane.position = CA1;
+            plane.position = (CA1 + CA2) / 2.f;
 
             plane.forward = glm::normalize(CA2 - CA1);
             //plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
