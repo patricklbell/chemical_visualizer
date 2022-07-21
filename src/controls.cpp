@@ -77,16 +77,24 @@ void handleControls(Camera &camera, float dt) {
             float x_angle = -delta_mouse_position.x * delta_angle_x;
             float y_angle = -delta_mouse_position.y * delta_angle_y;
 
-            // @todo Handle camera passing over poles of orbit 
             auto camera_look = camera.position - camera.target;
 
             auto rotation_x = glm::angleAxis(x_angle, camera.up);
             camera_look = rotation_x * camera_look;
 
-            if(glm::)
-            // Rotate the camera around the pivot point on the second axis.
-            auto rotation_y = glm::angleAxis(y_angle, camera_right);
-            camera_look = rotation_y * camera_look;
+            // Handle camera passing over poles of orbit 
+            // cos of angle between look and up is close to 1 -> parallel, -1 -> antiparallel
+            auto l_cos_up = glm::dot(camera_look, camera.up) / glm::length(camera_look);
+            bool allow_rotation = true;
+            if(abs(1 - l_cos_up) <= 0.01) {
+                allow_rotation = y_angle > 0.f;
+            } else if (abs(l_cos_up + 1) <= 0.01) {
+                allow_rotation = y_angle < 0.f;
+            }
+            if (allow_rotation){
+                auto rotation_y = glm::angleAxis(y_angle, camera_right);
+                camera_look = rotation_y * camera_look;
+            }
 
             // Update the camera view
             camera.position = camera_look + camera.target;

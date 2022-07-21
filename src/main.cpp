@@ -50,7 +50,7 @@ std::string getexepath() {
 std::string getexepath() {
     char result[PATH_MAX];
     ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-    auto p = std::filesystem::path(result, (count > 0) ? count : 0));
+    auto p = std::filesystem::path(std::string(result, (count > 0) ? count : 0));
     return p.parent_path().string();
 }
 #endif
@@ -138,15 +138,27 @@ int main() {
     printf("\n");
 
     // Load shaders
+#if _WINDOWS
     loadBasicShader(exepath+"\\data\\shaders\\basic.gl");
     loadBasicInstancedShader(exepath+"\\data\\shaders\\basic_instanced.gl");
+#else 
+    loadBasicShader(exepath+"/data/shaders/basic.gl");
+    loadBasicInstancedShader(exepath+"/data/shaders/basic_instanced.gl");
+#endif
 
     // Map for last update time for hotswaping files
     std::filesystem::file_time_type empty_file_time;
+#if _WINDOWS
     std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
         {exepath+"\\data\\shaders\\basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
         {exepath+"\\data\\shaders\\basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
     };
+#else
+    std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
+        {exepath+"/data/shaders/basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
+        {exepath+"/data/shaders/basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
+    };
+#endif
     // Fill in with correct file time
     for (auto &pair : shader_update_times) {
         if(std::filesystem::exists(pair.first)) 
@@ -154,7 +166,11 @@ int main() {
     }
 
     PdbFile pdb_file;
+#if _WINDOWS
     loadPdbFile(pdb_file, exepath+"\\data\\examples\\pdb\\1bzv.pdb");
+#else
+    loadPdbFile(pdb_file, exepath+"/data/examples/pdb/1bzv.pdb");
+#endif
    
     Entities entities;
     createEntitiesFromPdbFile(entities, pdb_file, camera);
