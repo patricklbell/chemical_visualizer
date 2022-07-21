@@ -14,7 +14,6 @@
 #include <glm/glm.hpp>
 
 #include "assets.hpp"
-#include "texture.hpp"
 #include "shader.hpp"
 #include "graphics.hpp"
 

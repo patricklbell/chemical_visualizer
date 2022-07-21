@@ -22,7 +22,6 @@
 #include "graphics.hpp"
 #include "loader.hpp"
 #include "utilities.hpp"
-#include "texture.hpp"
 #include "loader.hpp"
 
 void scaleMat3(glm::mat3 &mat, glm::vec3 scl) {

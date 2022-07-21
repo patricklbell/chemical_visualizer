@@ -30,7 +30,6 @@
 #include "utilities.hpp"
 #include "graphics.hpp"
 #include "shader.hpp"
-#include "texture.hpp"
 #include "assets.hpp"
 #include "controls.hpp"
 #include "entities.hpp"
