@@ -2,7 +2,7 @@
 View PDB (Protein Data Bank) and mol files.
 
 # 4HHB ([PDB](https://www.rcsb.org/structure/4HHB))
-![4HHB PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_4HHB.png?raw=true)
+![4HHB PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_4hhb.png?raw=true)
 
 
 # 8DH6 ([PDB](https://www.rcsb.org/structure/8DH6))
