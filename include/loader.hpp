@@ -239,7 +239,7 @@ const std::unordered_map<std::string, glm::vec3> symbol_to_color_lut = {
     {"Li", glm::vec3(204,128,255)},
     {"Be", glm::vec3(194,255,0)},
     {"B",  glm::vec3(55,181,181)},
-    {"C",  glm::vec3(44,144,144)},
+    {"C",  glm::vec3(100,100,100)},
     {"N",  glm::vec3(8,80,248)},
     {"O",  glm::vec3(55,13,13)},
     {"F",  glm::vec3(44,224,80)},

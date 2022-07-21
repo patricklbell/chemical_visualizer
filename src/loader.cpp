@@ -535,20 +535,20 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 
     glm::vec2 rectangle_profile[num_splines];
     glm::vec2 rectangle_profile_normals[num_splines];
-    createRectangleProfile(num_splines, rectangle_profile, 4.f*r, 1.f*r);
-    createRectangleProfileNormals(num_splines, rectangle_profile_normals, 4.f*r, 1.f*r);
+    createRectangleProfile(num_splines, rectangle_profile, 6.f*r, 1.5f*r);
+    createRectangleProfileNormals(num_splines, rectangle_profile_normals, 6.f*r, 1.5f*r);
 
     glm::vec2 ribbon_profile[num_splines];
     glm::vec2 ribbon_profile_normals[num_splines];
-    createRectangleProfile(num_splines, ribbon_profile, 4.f*r, 0.5f*r);
-    createRectangleProfileNormals(num_splines, ribbon_profile_normals, 4.f*r, 0.5f*r);
+    createRectangleProfile(num_splines, ribbon_profile, 5.f*r, 0.5f*r);
+    createRectangleProfileNormals(num_splines, ribbon_profile_normals, 5.f*r, 0.5f*r);
 
     // [0,1] point to exavluate to get arrow head beginning 
     constexpr float arrow_length = 0.75;
     glm::vec2 arrow_profile[num_splines];
     glm::vec2 arrow_profile_normals[num_splines];
-    createRectangleProfile(num_splines, arrow_profile, 9.f*r, 1.f*r);
-    createRectangleProfileNormals(num_splines, arrow_profile_normals, 9.f*r, 1.f*r);
+    createRectangleProfile(num_splines, arrow_profile, 10.f*r, 1.5f*r);
+    createRectangleProfileNormals(num_splines, arrow_profile_normals, 10.f*r, 1.5f*r);
     //glm::vec2 arrow_tip_profile[num_splines];
     //glm::vec2 arrow_tip_profile_normals[num_splines];
     //createRectangleProfile(num_splines, arrow_tip_profile, 0.f*r, 1.f*r);
@@ -861,12 +861,12 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
 
             //printf("Peptide Plane %d --> %d\n", i, i+1);
         }
-        if(peptide_planes.size() > 0) {
+        /*if(peptide_planes.size() > 0) {
             auto plane = peptide_planes[peptide_planes.size() - 1];
             auto lu_CA2 = plane.residue_2->atom_name_id.find(" CA ");
             plane.position = model.atoms[lu_CA2->second].position;
             peptide_planes.emplace_back(plane);
-        }
+        }*/
         // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
         // cardinal spline calculation
         constexpr float c = 0.25;
