@@ -1,4 +1,5 @@
 #if COMPILING_VS
+#extension GL_ARB_separate_shader_objects : enable
 
 layout (location = 0) in vec3 in_vertex;
 layout (location = 1) in vec3 in_normal;
@@ -22,6 +23,7 @@ void main(){
 #endif
 
 #if COMPILING_FS
+#extension GL_ARB_separate_shader_objects : enable
 
 #define PI                 3.14159265359
 #define AMBIENT_INTENSITY  0.1

@@ -103,7 +103,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
             int num = instanced_albedos[i].size();
             glBindVertexArray(mesh.vao);
 
-            unsigned int albedo_vbo;
+            GLuint albedo_vbo;
             glGenBuffers(1, &albedo_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, albedo_vbo);
             glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::vec3), &instanced_albedos[i][0], GL_STATIC_DRAW);
@@ -112,7 +112,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
             glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, 0);
             glVertexAttribDivisor(2, 1);  
 
-            unsigned int model_vbo;
+            GLuint model_vbo;
             glGenBuffers(1, &model_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, model_vbo);
             glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::mat4), &instanced_models[i][0], GL_STATIC_DRAW);
@@ -131,7 +131,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
             glVertexAttribDivisor(5, 1);
             glVertexAttribDivisor(6, 1);
 
-            unsigned int mvp_vbo;
+            GLuint mvp_vbo;
             glGenBuffers(1, &mvp_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, mvp_vbo);
             glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::mat4), &instanced_mvps[i][0], GL_STATIC_DRAW);

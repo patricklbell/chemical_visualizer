@@ -356,8 +356,8 @@ void createCubicSplineNormalsBetweenProfiles(const int num_points_per_spline, co
     a2 = -0.5f*pp1 + 0.5f*pp3;
     a3 = pp2;
 
-    glm::vec2 pf[num_splines];
-    glm::vec2 pfn[num_splines];
+    glm::vec2 *pf  = (glm::vec2*)malloc(sizeof(glm::vec2)*num_splines);
+    glm::vec2 *pfn = (glm::vec2*)malloc(sizeof(glm::vec2)*num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
         auto t = (float)i / (num_points_per_spline-1);
 
@@ -401,7 +401,7 @@ void createCubicSplineBetweenProfiles(const int num_points_per_spline, const int
     a2 = -0.5f*pp1 + 0.5f*pp3;
     a3 = pp2;
 
-    glm::vec2 pf[num_splines];
+    glm::vec2 *pf = (glm::vec2*)malloc(sizeof(glm::vec2)*num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
         auto t = (float)i / (num_points_per_spline-1);
 
@@ -498,8 +498,8 @@ PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_poin
     auto &b1 = p3.right;
        
     auto bref = (b0 + b1) / 2.f;
-    glm::vec2 pf[num_splines];
-    glm::vec2 pfn[num_splines];
+    glm::vec2* pf = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
+    glm::vec2* pfn = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
         auto t1 = ((float)i / (num_points_per_spline-1))*t;
         auto t2 = t1*t1;
@@ -556,8 +556,8 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
     auto &b1 = p3.right;
        
     auto bref = (b0 + b1) / 2.f;
-    glm::vec2 pf[num_splines];
-    glm::vec2 pfn[num_splines];
+    glm::vec2* pf = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
+    glm::vec2* pfn = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
         auto t1 = (float)i / (num_points_per_spline-1);
         auto t2 = t1*t1;
@@ -595,13 +595,13 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
 }
 
 void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
-    glm::vec2 pf[num_splines];
-    glm::vec2 pfn[num_splines];
-
     auto pp0 = p2.position;
     auto pp1 = p2.position + p2.forward;
     auto pp2 = p3.position - p3.forward;
     auto pp3 = p3.position;
+
+    glm::vec2* pf = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
+    glm::vec2* pfn = (glm::vec2*)malloc(sizeof(glm::vec2) * num_splines);
     for(int i = 0; i < num_points_per_spline; i++) {
         auto t = (float)i / (num_points_per_spline-1);
         auto t2 = t*t;

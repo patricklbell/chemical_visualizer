@@ -17,7 +17,7 @@
 #include "graphics.hpp"
 
 namespace controls {
-    glm::vec2 scroll_offset;
+    glm::dvec2 scroll_offset;
     bool scrolled;
     glm::dvec2 mouse_position;
     glm::dvec2 delta_mouse_position;
@@ -83,6 +83,7 @@ void handleControls(Camera &camera, float dt) {
             auto rotation_x = glm::angleAxis(x_angle, camera.up);
             camera_look = rotation_x * camera_look;
 
+            if(glm::)
             // Rotate the camera around the pivot point on the second axis.
             auto rotation_y = glm::angleAxis(y_angle, camera_right);
             camera_look = rotation_y * camera_look;

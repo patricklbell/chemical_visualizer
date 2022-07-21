@@ -130,11 +130,11 @@ void createAtomEntity(const glm::vec3 &pos, const glm::vec3 &col, Entities &enti
 
 void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera){
 #ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.obj");
 #else
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.mesh");
 #endif
 
     static const float relative_cylinder_size = 0.05;
@@ -162,8 +162,18 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
     }
     center /= data.num_atoms;
 
+    float max_distance = 0.0;
+    for (int i = 0; i < data.num_atoms; ++i) {
+        auto& a = data.atoms[i];
+        auto dist = glm::length(a.position - center);
+        if (dist > max_distance) {
+            max_distance = dist;
+        }
+    }
     camera.target = center;
+    camera.position = camera.target + glm::normalize(camera.position - camera.target) * max_distance * 2.2f;
     updateCameraView(camera);
+
     // @alternate method for reserving and also incase double bonds are written as two singles
     //int num_bond_entities;
     //std::unordered_map<int, MolBondType> atom_to_bonds;
@@ -676,11 +686,11 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 
 void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera){
 #ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.obj");
 #else
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.mesh");
 #endif
 
     // @note Assume first model is the correct one

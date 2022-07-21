@@ -1,7 +1,8 @@
-#if COMPILING_VS
+﻿#if COMPILING_VS
+#extension GL_ARB_separate_shader_objects : enable
 
-layout (location = 0) in vec3 in_vertex;
-layout (location = 1) in vec3 in_normal;
+layout(location = 0) in vec3 in_vertex;
+layout(location = 1) in vec3 in_normal;
 
 out vec3 position;
 out vec3 normal;
@@ -12,13 +13,14 @@ uniform mat4x4 mvp;
 void main(){
     vec4 vertex = vec4(in_vertex, 1.0);
     gl_Position = mvp * vertex;
-	position = (model * vertex).xyz;
+    position = (model * vertex).xyz;
     normal = normalize((model * vec4(in_normal, 0.0)).xyz);
 }
 
 #endif
 
 #if COMPILING_FS
+#extension GL_ARB_separate_shader_objects : enable
 
 #define PI                 3.14159265359
 #define AMBIENT_INTENSITY  0.1
@@ -53,10 +55,10 @@ float distributionGGX(vec3 N, vec3 H, float roughness)
     float nom    = roughness*roughness*roughness*roughness;
     float NdotH  = max(dot(N, H), 0.0);
     float NdotH2 = NdotH*NdotH;
-	
+    
     float denom  = (NdotH2 * (nom - 1.0) + 1.0);
     denom        = PI * denom * denom;
-	
+    
     return nom / denom;
 }
 // Takes multiplier between 0 -> 1 with 0 being complete microfacet shadowing 
@@ -78,7 +80,7 @@ float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     float NdotL = max(dot(N, L), 0.0);
     float ggx2  = geometrySchlickGGX(NdotV, roughness);
     float ggx1  = geometrySchlickGGX(NdotL, roughness);
-	
+    
     return ggx1 * ggx2;
 }
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
@@ -161,5 +163,4 @@ void main() {
 
     out_color = vec4(mapped, 1.0);
 }
-
 #endif

@@ -12,5 +12,6 @@
 #define PI           3.14159265359
 
 extern GLFWwindow* window;
+extern std::string exepath;
 
 #endif

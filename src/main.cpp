@@ -19,6 +19,7 @@
 #include <ShellScalingApi.h>
 #endif
 GLFWwindow* window;
+std::string exepath;
 
 // Include GLM
 #include <glm/glm.hpp>
@@ -35,6 +36,24 @@ GLFWwindow* window;
 #include "assets.hpp"
 #include "entities.hpp"
 #include "loader.hpp"
+
+#ifdef _WINDOWS
+#include <windows.h>
+std::string getexepath() {
+    char result[MAX_PATH];
+    auto p = std::filesystem::path(std::string(result, GetModuleFileName(NULL, result, MAX_PATH)));
+    return p.parent_path().string();
+}
+#else
+#include <limits.h>
+#include <unistd.h>
+std::string getexepath() {
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    auto p = std::filesystem::path(result, (count > 0) ? count : 0));
+    return p.parent_path().string();
+}
+#endif
 
 int main() {
     if(!glfwInit()) {
@@ -64,11 +83,11 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 #elif _WIN32
     // GL 3.0 + GLSL 130
-    shader::glsl_version = "#version 130\n";
+    shader::glsl_version = "#version 330\n";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 #else
-    shader::glsl_version = "#version 130\n";
+    shader::glsl_version = "#version 330\n";
 #endif
 
 #if __APPLE__
@@ -79,7 +98,6 @@ int main() {
     window = glfwCreateWindow(1024, 700, "Window", NULL, NULL);
     if(window == NULL) {
         fprintf( stderr, "Failed to open GLFW window.\n" );
-        getchar();
         glfwTerminate();
         return 1;
     }
@@ -103,20 +121,31 @@ int main() {
 
     glEnable(GL_MULTISAMPLE);
 
+    exepath = getexepath();
+
     initGraphicsPrimitives();
 
     Camera camera;
     createDefaultCamera(camera);
+    char* GL_version = (char*)glGetString(GL_VERSION);
+    char* GL_vendor = (char*)glGetString(GL_VENDOR);
+    char* GL_renderer = (char*)glGetString(GL_RENDERER);
+    printf(GL_version);
+    printf("\n");
+    printf(GL_vendor);
+    printf("\n");
+    printf(GL_renderer);
+    printf("\n");
 
     // Load shaders
-    loadBasicShader("data/shaders/basic.gl");
-    loadBasicInstancedShader("data/shaders/basic_instanced.gl");
+    loadBasicShader(exepath+"\\data\\shaders\\basic.gl");
+    loadBasicInstancedShader(exepath+"\\data\\shaders\\basic_instanced.gl");
 
     // Map for last update time for hotswaping files
     std::filesystem::file_time_type empty_file_time;
     std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
-        {"data/shaders/basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
-        {"data/shaders/basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
+        {exepath+"\\data\\shaders\\basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
+        {exepath+"\\data\\shaders\\basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
     };
     // Fill in with correct file time
     for (auto &pair : shader_update_times) {
@@ -125,7 +154,7 @@ int main() {
     }
 
     PdbFile pdb_file;
-    loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
+    loadPdbFile(pdb_file, exepath+"\\data\\examples\\pdb\\1bzv.pdb");
    
     Entities entities;
     createEntitiesFromPdbFile(entities, pdb_file, camera);

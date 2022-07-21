@@ -25,7 +25,7 @@ void updateCameraProjection(Camera &camera);
 void updateCamera(Camera &camera);
 
 namespace controls {
-    extern glm::vec2 scroll_offset;
+    extern glm::dvec2 scroll_offset;
     extern bool scrolled;
     extern bool left_mouse_click_release;
     extern bool left_mouse_click_press;
