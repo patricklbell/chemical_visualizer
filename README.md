@@ -19,7 +19,6 @@ Create a running container from the [Dockerfile](.devcontainer/Dockerfile), moun
 and run:
 
   ```bash
-    cd /workspace/CppOpenGLWebAssemblyCMake/
     mkdir build && cd build
     emcmake cmake -GNinja ..
     cmake --build .
