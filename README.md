@@ -15,10 +15,11 @@ Enable the CMake Tools extension for VSCode.
 
 ### Building the WebAssembly based application with Emscripten SDK
 
-Create a running container from the [Dockerfile](.devcontainer/Dockerfile), mount the root of the repository onto /workspace/CppOpenGLWebAssemblyCMake/,
+Create a running container from the [Dockerfile](.devcontainer/Dockerfile), mount the root of the repository onto /workspace/chemical_visualizer_emscripten/,
 and run:
 
   ```bash
+    cd /workspace/chemical_visualizer_emscripten/
     mkdir build && cd build
     emcmake cmake -GNinja ..
     cmake --build .
