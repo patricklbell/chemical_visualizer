@@ -1,67 +1,36 @@
 # Chemical Visualizer
-View PDB (Protein Data Bank) and mol files.
-
-## 4HHB ([PDB](https://www.rcsb.org/structure/4HHB))
-![4HHB PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_4hhb.png?raw=true)
-
-
-## 8DH6 ([PDB](https://www.rcsb.org/structure/8DH6))
-![8DH6 PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_8dh6.png?raw=true)
-
-## Caffeine (Molfile)
-![Caffeine Molfile](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_mol_caffeine.png?raw=true)
+View PDB (Protein Data Bank) and mol files. This is the emscripten branch, which builts with cmake and emcc to create a static website.
+See the result at https://patricklbell.github.io/chemical_visualizer/.
 
 ## Building
-### Windows
-#### Requirements
-You need CMake and the Visual Studio build toochain for C++. Additionally OpenGL
-must be above version 3.3 (Should already work, if not, update your graphics 
-drivers). 
-#### Building
-Download the source and unzip or 
-```
-git clone https://github.com/patricklbell/chemical_visualizer.git
-```
-Navigate to the root of source, create a build directory and build with CMake:
-```
-cd chemical_visualizer
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ./..
-cmake --build . --config Release
-```
-CMake should copy the data folder to build/Release directory, if it doesn't copy
-this yourself.
+The build system is modified from https://github.com/lukka/CppOpenGLWebAssemblyCMake and requires Docker. Note that while the build system supports building natively, this is untested (won't work) since main already builds natively.
 
-### Linux (X11)
-#### Requirements
-To compile GLFW you need the X11 development packages installed, on Debian and 
-derivates like Ubuntu and Linux Mint the xorg-dev meta-package pulls in the 
-development packages for all of X11. For more information see 
-https://www.glfw.org/docs/3.3/compile.html. You will need CMake, and OpenGL 
-must be above version 3.3 (Should already work, if not, update your graphics 
-drivers).
-#### Building
-Download the source and unzip or 
-```
-git clone https://github.com/patricklbell/chemical_visualizer.git
-```
-Navigate to the root of source, create a build directory and build with CMake:
-```
-cd chemical_visualizer
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ./..
-cmake --build .
-```
-CMake should copy the data folder to your build directory, if it doesn't copy 
-this yourself.
-```
-cp -R ../data .
-```
+### With VSCode using Docker
 
-## Todo:
-- Molfiles which don't specify each atom's 3D coordinates but do specify bond 
-angles are not displayed correctly
-- Display wireframe and spacefilling visualizations of pdb files
-- Create different color modes for pdb files
+The provided [Dockerfile](.devcontainer/Dockerfile) contains all you need to build and run this project (e.g. Emscripten SDK version 2.0+, gcc, CMake, Ninja).
+
+Open the folder with VSCode using "Remote-Container: Open folder in container", 
+
+Enable the CMake Tools extension for VSCode.
+
+### Building the WebAssembly based application with Emscripten SDK
+
+Create a running container from the [Dockerfile](.devcontainer/Dockerfile), mount the root of the repository onto /workspace/CppOpenGLWebAssemblyCMake/,
+and run:
+
+  ```bash
+    cd /workspace/CppOpenGLWebAssemblyCMake/
+    mkdir build && cd build
+    emcmake cmake -GNinja ..
+    cmake --build .
+  ```
+
+### Building the native application for Linux/macOS/Windows
+
+  ```bash
+    mkdir build && cd build
+    cmake -GNinja ..
+    cmake --build .
+  ```
+
+You can replace Ninja with any project file generator you like, e.g. make/VisualStudio/XCode/Eclipse.
