@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>WebAssembly - Chemical Visualizer</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body {
+            font-family: arial;
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+
+        .emscripten {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            margin: 0px;
+            padding: 0px;
+            border: 0px;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .header {
+            position: absolute;
+            text-align: center;
+            color: white;
+            width: 100%;
+            margin-top: 40px;
+            font-size: 2rem;
+            padding: 16px;
+            display: inline-block;
+            pointer-events: none;
+        }
+
+        .throbber {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            margin: 0px;
+            padding: 0px;
+            border: 0px;
+            width: 100%;
+            height: 100%;
+
+            background-color: rgb(31, 33, 51);
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40"> <style> circle { animation: 4s a infinite linear, 3s o infinite linear; } @keyframes a {from{stroke-dasharray:100 0}50%25{stroke-dasharray:0 100}to{stroke-dasharray:100 0}} @keyframes o {from{stroke-dashoffset:75}to{stroke-dashoffset:375}} <%2Fstyle><circle r="8" stroke-width="2.4" fill="none" stroke="%23654EF0" /> </svg>');
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-size: 50vmin;
+            z-index: 3;
+        }
+        
+        /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+        canvas.emscripten {
+            border: 0px none;
+            background-color: rgb(31, 33, 51);
+        }
+
+        .dropbtn {
+            background-color: #101011;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            min-width: 160px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropdown {
+            position: absolute;
+            margin-left: 40px;
+            margin-top: 40px;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            font-size: 16px;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown:hover .dropbtn {
+            background-color: #101011;
+        }
+    </style>
+    <script>
+        var _lastTime;
+
+        function getGLCanvas() {
+            return document.getElementById("canvas");
+        }
+
+        // Main entry point.
+        function main() {
+            document.getElementById('loading-throbber').remove();
+        }
+
+        // Load the wasm file with Fetch APIs.
+        function onBodyLoad() {
+            fetch('wasm_app_emsdk.wasm').then(response =>
+                response.arrayBuffer()
+            ).then(bytes => {
+                // Once the wasm file has been loaded, the onRuntimeInitialized callback
+                // will be invoked.
+                Module.wasmBinary = bytes;
+                Module.canvas = (function () {
+                    return getGLCanvas();
+                })();
+
+                Module.onRuntimeInitialized = function () {
+                    main();
+                };
+
+                var script = document.createElement('script');
+                script.src = "wasm_app_emsdk.js";
+                document.body.appendChild(script);
+
+                document.addEventListener('contextmenu', event => event.preventDefault());
+            });
+        };
+
+    </script>
+</head>
+
+<body style="background:black; " onload="onBodyLoad()">
+    <canvas class="emscripten" id="canvas">
+        This web browser doesn't support canvas tag.
+    </canvas>
+    <div class="throbber" id="loading-throbber"></div>
+    <div class="header" id="header">1bzv.pdb</div>
+    <div class="dropdown">
+        <button class="dropbtn">Load Protein/Molecule</button>
+        <div class="dropdown-content">
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/1bzv.pdb'); document.getElementById('header').textContent = '1bzv.pdb'">1bzv.pdb</a>
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/1gwe.pdb'); document.getElementById('header').textContent = '1gwe.pdb'">1gwe.pdb</a>
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/4hhb.pdb'); document.getElementById('header').textContent = '4hhb.pdb'">4hhb.pdb</a>
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/6w63.pdb'); document.getElementById('header').textContent = '6w63.pdb'">6w63.pdb</a>
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/7vhd.pdb'); document.getElementById('header').textContent = '7vhd.pdb'">7vhd.pdb</a>
+            <a href="#" onclick="Module.loadPdbFile('data/examples/pdb/8dh6.pdb'); document.getElementById('header').textContent = '8dh6.pdb'">8dh6.pdb</a>
+            <a href="#" onclick="Module.loadMolFile('data/examples/molfiles/fullerene.mol'); document.getElementById('header').textContent = 'fullerene.mol'">fullerene.mol</a>
+            <a href="#" onclick="Module.loadMolFile('data/examples/molfiles/ethanol.mol');   document.getElementById('header').textContent = 'ethanol.mol'">ethanol.mol</a>
+            <a href="#" onclick="Module.loadMolFile('data/examples/molfiles/caffeine.mol');  document.getElementById('header').textContent = 'caffeine.mol'">caffeine.mol</a>
+        </div>
+    </div>
+
+    <script>
+        var Module =
+        {
+            canvas: (function () {
+                var canvas = document.getElementById('canvas');
+
+                // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+                // application robust, you may want to override this behavior before shipping!
+                // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+                canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+                return canvas;
+            })(),
+
+            preRun: [],
+            postRun: [],
+            printErr: function () {
+                console.warn(Array.prototype.slice.call(arguments).join(" "));
+            },
+            print: function () {
+                console.warn(Array.prototype.slice.call(arguments).join(" "));
+            }
+        };
+
+
+    </script>
+</body>
+
+</html>
