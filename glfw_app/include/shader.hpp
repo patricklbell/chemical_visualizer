@@ -3,6 +3,12 @@
 
 #include <string>
 
+#if !defined(EMSCRIPTEN)
+#include <glad/glad.h>
+#else
+#define GLFW_INCLUDE_ES3
+#include <GLES3/gl3.h>
+#endif
 #include <GLFW/glfw3.h>
 
 GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepends);

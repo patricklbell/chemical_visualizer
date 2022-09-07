@@ -2,7 +2,6 @@
 #define CONTROLS_H
 
 #include <glm/glm.hpp>
-#include <glm/detail/type_vec.hpp>
 
 #if !defined(EMSCRIPTEN)
 #include <glad/glad.h>

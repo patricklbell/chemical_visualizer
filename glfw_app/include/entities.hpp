@@ -2,10 +2,10 @@
 #define ENTITIES_HPP
 #include <vector>
 
+#include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include "assets.hpp"
-#include "glm/detail/type_vec.hpp"
 
 enum EntityType {
     ENTITY = 0,

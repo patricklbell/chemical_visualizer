@@ -14,7 +14,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/detail/type_mat.hpp>
 
 #include "graphics.hpp"
 #include "utilities.hpp"
