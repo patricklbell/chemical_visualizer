@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/g-truc/glm.git
+	branch = master
+	commit = cc98465e3508535ba8c7f6208df934c156a018dc
+	parent = 1c0b35f3ebe4291a66f761745bbfb3d746a23df6
+	method = merge
+	cmdver = 0.4.3
