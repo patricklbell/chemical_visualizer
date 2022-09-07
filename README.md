@@ -1,5 +1,5 @@
 # Chemical Visualizer
-View PDB (Protein Data Bank) and mol files.
+View PDB (Protein Data Bank) and mol files. This app is also built to webassembly on the [emscripten branch](https://github.com/patricklbell/chemical_visualizer/tree/emscripten).
 
 ## 4HHB ([PDB](https://www.rcsb.org/structure/4HHB))
 ![4HHB PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_4hhb.png?raw=true)
