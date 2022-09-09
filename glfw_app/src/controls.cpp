@@ -19,7 +19,11 @@
 
 namespace controls {
     glm::dvec2 scroll_offset;
-    bool scrolled;
+    bool scrolled = false;
+    bool touched = false;
+
+    bool left_mouse = false;
+    bool right_mouse = false;
     glm::dvec2 mouse_position;
     glm::dvec2 delta_mouse_position;
 }
@@ -37,8 +41,8 @@ void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset){
 EM_BOOL emScrollCallback(int eventType, const EmscriptenWheelEvent *wheelEvent, void *userData)
 {
     //std::cout << "Mousemove event, x: " << mouseEvent->clientX << ", y: " <<  mouseEvent->clientY  << "\n";
-    double xoffset = wheelEvent->deltaX / 700.0f;
-    double yoffset = wheelEvent->deltaY / 700.0f;
+    double xoffset = wheelEvent->deltaX / 500.0f;
+    double yoffset = wheelEvent->deltaY / 500.0f;
     if(scroll_offset.x != xoffset || scroll_offset.y != yoffset) scrolled = true; 
     else                                                         scrolled = false;
 
@@ -46,6 +50,55 @@ EM_BOOL emScrollCallback(int eventType, const EmscriptenWheelEvent *wheelEvent, 
     scroll_offset.y = yoffset;
     return EM_TRUE;
 }
+
+EM_BOOL emMouseDownCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData) {
+    if(mouseEvent->button == 0)
+        left_mouse = true;
+    else if(mouseEvent->button == 2)
+        right_mouse = true;
+    return EM_TRUE;
+}
+EM_BOOL emMouseMoveCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData) {
+    mouse_position = glm::vec2(mouseEvent->targetX, mouseEvent->targetY);
+    delta_mouse_position = glm::vec2(mouseEvent->movementX, mouseEvent->movementY);
+    return EM_TRUE;
+}
+EM_BOOL emMouseUpCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData) {
+    if(mouseEvent->button == 0)
+        left_mouse = false;
+    else if(mouseEvent->button == 2)
+        right_mouse = false;
+    return EM_TRUE;
+}
+
+EM_BOOL emTouchStartCallback(int eventType, const EmscriptenTouchEvent *touchEvent, void *userData) {
+    touched = touchEvent->numTouches == 1;
+    mouse_position = glm::vec2(touchEvent->touches[0].targetX, touchEvent->touches[0].targetY);
+    delta_mouse_position = glm::vec2(0.0);
+    // Allow focus to return
+    return EM_FALSE;
+}
+EM_BOOL emTouchMoveCallback(int eventType, const EmscriptenTouchEvent *touchEvent, void *userData) {
+    if(touched) {
+        auto new_mouse_position = glm::dvec2(touchEvent->touches[0].targetX, touchEvent->touches[0].targetY);
+        delta_mouse_position = new_mouse_position - mouse_position;
+        mouse_position = new_mouse_position;
+    }
+
+    touched = touchEvent->numTouches == 1;
+    return EM_FALSE;
+}
+EM_BOOL emTouchEndCallback(int eventType, const EmscriptenTouchEvent *touchEvent, void *userData) {
+    touched = false;
+    // Allow focus to return
+    return EM_FALSE;
+}
+EM_BOOL emTouchCancelCallback(int eventType, const EmscriptenTouchEvent *touchEvent, void *userData) {
+    touched = false;
+    // Allow focus to return
+    return EM_FALSE;
+}
+
 #endif
 
 void initControls(GLFWwindow* window){
@@ -54,12 +107,15 @@ void initControls(GLFWwindow* window){
 }
 
 void handleControls(GLFWwindow* window, Camera &camera, float dt) {
+#if !defined(EMSCRIPTEN)
     // Unlike other inputs, calculate delta but update mouse position immediately
     glm::dvec2 delta_mouse_position = mouse_position;
     glfwGetCursorPos(window, &mouse_position.x, &mouse_position.y);
     delta_mouse_position = mouse_position - delta_mouse_position;
+    left_mouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+#endif
 
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+    if (left_mouse || touched) {
         auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
         // Calculate the amount of rotation given the mouse movement.
@@ -90,7 +146,7 @@ void handleControls(GLFWwindow* window, Camera &camera, float dt) {
         // Update the camera view
         camera.position = camera_look + camera.target;
         updateCameraView(camera);
-    } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+    } else if (right_mouse) {
         auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
         auto delta = (float)delta_mouse_position.x*camera_right - (float)delta_mouse_position.y*camera.up;

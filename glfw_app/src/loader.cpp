@@ -11,6 +11,7 @@
 #include "loader.hpp"
 #include "entities.hpp"
 #include "utilities.hpp"
+#include "graphics.hpp"
 
 void loadMolFile(MolFile &data, std::string path){
     FILE *f;
@@ -171,7 +172,9 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
         }
     }
     camera.target = center;
-    camera.position = camera.target + glm::normalize(camera.position - camera.target) * max_distance * 3.1f;
+    float min_screen_ratio = glm::min((float)window_height/(float)window_width, (float)window_width/(float)window_height);
+    float d = max_distance / glm::max(glm::tan(min_screen_ratio*camera.fov * INITIAL_FOV_PORTION), 0.1f);
+    camera.position = camera.target + glm::normalize(camera.position - camera.target) * d;
     updateCameraView(camera);
 
     // @alternate method for reserving and also incase double bonds are written as two singles
@@ -825,7 +828,9 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         }
     }
     camera.target = center;
-    camera.position = camera.target + glm::normalize(camera.position - camera.target)*max_distance*2.2f;
+    float min_screen_ratio = glm::min((float)window_height/(float)window_width, (float)window_width/(float)window_height);
+    float d = max_distance / glm::max(glm::tan(min_screen_ratio*camera.fov * INITIAL_FOV_PORTION), 0.1f);
+    camera.position = camera.target + glm::normalize(camera.position - camera.target) * d;
     updateCameraView(camera);
 
     for(const auto &atom_id : encountered_hetatms) {

@@ -42,7 +42,7 @@ void updateCameraView(Camera &camera){
 }
 
 void updateCameraProjection(Camera &camera){
-    camera.projection = glm::perspective(glm::radians(45.0f), (float)window_width/(float)window_height, camera.near_plane, camera.far_plane);
+    camera.projection = glm::perspective(camera.fov, (float)window_width/(float)window_height, camera.near_plane, camera.far_plane);
 }
 
 void updateCamera(Camera &camera){

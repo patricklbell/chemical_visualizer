@@ -98,9 +98,17 @@ bool initialize()
     //
     EMSCRIPTEN_RESULT res = emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0 /*void *userData*/, true /* useCapture */, emResizeCallback);
     res |= emscripten_set_wheel_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emScrollCallback);
+    res |= emscripten_set_mousedown_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emMouseDownCallback);
+    res |= emscripten_set_mousemove_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emMouseMoveCallback);
+    res |= emscripten_set_mouseup_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emMouseUpCallback);
+
+    res |= emscripten_set_touchstart_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emTouchStartCallback);
+    res |= emscripten_set_touchmove_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emTouchMoveCallback);
+    res |= emscripten_set_touchend_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emTouchEndCallback);
+    res |= emscripten_set_touchcancel_callback( "#canvas", 0 /*void *userData*/, true /* useCapture */, emTouchCancelCallback);
 
 #else
-    auto primary_monitor = glfwGetprimary_monitor();
+    auto primary_monitor = glfwGetPrimaryMonitor();
     GLFWmonitor *monitor = glfwGetWindowMonitor(window);
     GLFWvidmode const *mode = glfwGetVideoMode(monitor ? monitor : primary_monitor);
     if (monitor)
@@ -118,7 +126,7 @@ bool initialize()
     // Init OpenGL
     //
 #if !defined(EMSCRIPTEN)
-    ret = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    auto ret = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 #endif
 
 #if defined(EMSCRIPTEN)
@@ -200,8 +208,7 @@ void runMessageLoop()
 #endif
 }
 
-int main()
-{
+int main() {
     if (initialize()) {
         runMessageLoop();
     } else {
