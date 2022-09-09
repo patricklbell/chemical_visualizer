@@ -174,7 +174,7 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
     camera.target = center;
     float min_screen_ratio = glm::min((float)window_height/(float)window_width, (float)window_width/(float)window_height);
     float d = max_distance / glm::max(glm::tan(min_screen_ratio*camera.fov * INITIAL_FOV_PORTION), 0.1f);
-    camera.position = camera.target + glm::normalize(camera.position - camera.target) * d;
+    camera.position = camera.target + glm::normalize(-graphics::sun_direction) * d;
     updateCameraView(camera);
 
     // @alternate method for reserving and also incase double bonds are written as two singles
@@ -830,7 +830,7 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     camera.target = center;
     float min_screen_ratio = glm::min((float)window_height/(float)window_width, (float)window_width/(float)window_height);
     float d = max_distance / glm::max(glm::tan(min_screen_ratio*camera.fov * INITIAL_FOV_PORTION), 0.1f);
-    camera.position = camera.target + glm::normalize(camera.position - camera.target) * d;
+    camera.position = camera.target + glm::normalize(-graphics::sun_direction) * d;
     updateCameraView(camera);
 
     for(const auto &atom_id : encountered_hetatms) {

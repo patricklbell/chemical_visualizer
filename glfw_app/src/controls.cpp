@@ -24,6 +24,7 @@ namespace controls {
 
     bool left_mouse = false;
     bool right_mouse = false;
+    bool mouse_moving = false;
     glm::dvec2 mouse_position;
     glm::dvec2 delta_mouse_position;
 }
@@ -61,9 +62,11 @@ EM_BOOL emMouseDownCallback(int eventType, const EmscriptenMouseEvent *mouseEven
 EM_BOOL emMouseMoveCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData) {
     mouse_position = glm::vec2(mouseEvent->targetX, mouseEvent->targetY);
     delta_mouse_position = glm::vec2(mouseEvent->movementX, mouseEvent->movementY);
+    mouse_moving = true;
     return EM_TRUE;
 }
 EM_BOOL emMouseUpCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData) {
+    delta_mouse_position = glm::vec2(0.0, 0.0);
     if(mouseEvent->button == 0)
         left_mouse = false;
     else if(mouseEvent->button == 2)
@@ -115,7 +118,8 @@ void handleControls(GLFWwindow* window, Camera &camera, float dt) {
     left_mouse = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 #endif
 
-    if (left_mouse || touched) {
+    if ((left_mouse && mouse_moving) || touched) {
+        mouse_moving = false;
         auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
         // Calculate the amount of rotation given the mouse movement.
@@ -146,7 +150,7 @@ void handleControls(GLFWwindow* window, Camera &camera, float dt) {
         // Update the camera view
         camera.position = camera_look + camera.target;
         updateCameraView(camera);
-    } else if (right_mouse) {
+    } else if (right_mouse && mouse_moving) {
         auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
         auto delta = (float)delta_mouse_position.x*camera_right - (float)delta_mouse_position.y*camera.up;
@@ -156,6 +160,8 @@ void handleControls(GLFWwindow* window, Camera &camera, float dt) {
 
         updateCameraView(camera);
     }
+    // Handles drift from last event when mouse button is held but not moving
+    mouse_moving = false;
 
     if(scroll_offset.y != 0){
         float distance_scl = abs(1 + scroll_offset.y*0.1);

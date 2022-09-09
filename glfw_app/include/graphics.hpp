@@ -49,4 +49,9 @@ void initGraphics();
 void bindBackbuffer();
 void drawEntities(const Entities &entities, const Camera &camera);
 
+namespace graphics{
+    extern glm::vec3 sun_color;
+    extern glm::vec3 sun_direction;
+}
+
 #endif

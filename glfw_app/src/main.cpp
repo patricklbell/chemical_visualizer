@@ -139,14 +139,13 @@ bool initialize()
 #endif
 
     createDefaultCamera(camera);
+    initControls(window);
+    initGraphics();
 
     // Load default file
     PdbFile pdb_file;
     loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
     createEntitiesFromPdbFile(entities, pdb_file, camera);
-
-    initControls(window);
-    initGraphics();
 
     return (glGetError() == GL_NO_ERROR);
 }
