@@ -99,7 +99,7 @@ vec3 brdfSchlickGGX(vec3 position, vec3 normal, vec3 albedo, vec3 light_dir, vec
     vec3 halfway_dir = normalize(view_dir + light_dir);
     vec3 radiance    = light_col; 
     float metallic   = 0.0;
-    float roughness  = 0.3; 
+    float roughness  = 0.7; 
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
@@ -155,7 +155,7 @@ void main() {
 #endif
 
 #ifdef PBR
-    float ao = 0.1; 
+    float ao = 0.3; 
     vec3 ambient = albedo * ao;
     vec3 hdr_color = ambient + brdfSchlickGGX(position, normal, albedo, -sun_direction, sun_color);
 #endif
