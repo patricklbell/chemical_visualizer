@@ -129,11 +129,11 @@ int main() {
     char* GL_version = (char*)glGetString(GL_VERSION);
     char* GL_vendor = (char*)glGetString(GL_VENDOR);
     char* GL_renderer = (char*)glGetString(GL_RENDERER);
-    printf(GL_version);
+    printf("%s", GL_version);
     printf("\n");
-    printf(GL_vendor);
+    printf("%s", GL_vendor);
     printf("\n");
-    printf(GL_renderer);
+    printf("%s", GL_renderer);
     printf("\n");
 
     // Load shaders
@@ -235,5 +235,3 @@ int main() {
     glfwTerminate();
     return 0;
 }
-
-

@@ -526,7 +526,7 @@ PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_poin
         }
 
         projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
-        projectPointsOnPlane(num_splines, p, bn, n, pfn, &normals_tube[num_splines*i]);
+        projectPointsOnPlane(num_splines, glm::vec3(0.0f), bn, n, pfn, &normals_tube[num_splines*i]);
 
         if(i == num_points_per_spline - 1) {
             return PeptidePlane{p3.residue_1, p3.residue_2, p, bn, tn, n, false};
@@ -584,7 +584,7 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
         }
 
         projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
-        projectPointsOnPlane(num_splines, p, bn, n, pfn, &normals_tube[num_splines*i]);
+        projectPointsOnPlane(num_splines, glm::vec3(0.0f), bn, n, pfn, &normals_tube[num_splines*i]);
         prev_normal = n;
     }
 }
@@ -617,7 +617,7 @@ void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spli
         }
 
         projectPointsOnPlane(num_splines, p, n, bn, pf,  &spline_tube [num_splines*i]);
-        projectPointsOnPlane(num_splines, p, n, bn, pfn, &normals_tube[num_splines*i]);
+        projectPointsOnPlane(num_splines, glm::vec3(0.0f), n, bn, pfn, &normals_tube[num_splines*i]);
         prev_normal = n;
     }
 }
@@ -725,15 +725,17 @@ void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::v
 
     mesh.draw_count[0] += 3*num_triangles;
 
-    mesh.vertices[vertex_offset] = toModelSpace(center_point);
-
     glm::vec3 n;
     if(flipped) n = calculateTriangleNormalCCW(center_point, profile[0], profile[1]);
     else        n = calculateTriangleNormalCCW(center_point, profile[1], profile[0]);
+    n = toModelSpace(n);
+
+    mesh.vertices[vertex_offset] = toModelSpace(center_point);
+    mesh.normals [vertex_offset] = n;
 
     for(int i = 0; i < num_triangles; i++) {
         mesh.vertices[vertex_offset + i + 1] = toModelSpace(profile[i]);
-        mesh.normals [vertex_offset + i + 1] = toModelSpace(n);
+        mesh.normals [vertex_offset + i + 1] = n;
 
         // CCW winding order
         mesh.indices [index_offset + 3*i] = vertex_offset;
