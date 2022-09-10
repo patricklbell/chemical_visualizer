@@ -19,7 +19,6 @@
 #include <ShellScalingApi.h>
 #endif
 GLFWwindow* window;
-std::string exepath;
 
 // Include GLM
 #include <glm/glm.hpp>
@@ -35,24 +34,6 @@ std::string exepath;
 #include "assets.hpp"
 #include "entities.hpp"
 #include "loader.hpp"
-
-#ifdef _WINDOWS
-#include <windows.h>
-std::string getexepath() {
-    char result[MAX_PATH];
-    auto p = std::filesystem::path(std::string(result, GetModuleFileName(NULL, result, MAX_PATH)));
-    return p.parent_path().string();
-}
-#else
-#include <limits.h>
-#include <unistd.h>
-std::string getexepath() {
-    char result[PATH_MAX];
-    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-    auto p = std::filesystem::path(std::string(result, (count > 0) ? count : 0));
-    return p.parent_path().string();
-}
-#endif
 
 int main() {
     if(!glfwInit()) {
@@ -120,8 +101,6 @@ int main() {
 
     glEnable(GL_MULTISAMPLE);
 
-    exepath = getexepath();
-
     initGraphicsPrimitives();
 
     Camera camera;
@@ -136,28 +115,15 @@ int main() {
     printf("%s", GL_renderer);
     printf("\n");
 
-    // Load shaders
-#if _WINDOWS
-    loadBasicShader(exepath+"\\data\\shaders\\basic.gl");
-    loadBasicInstancedShader(exepath+"\\data\\shaders\\basic_instanced.gl");
-#else 
-    loadBasicShader(exepath+"/data/shaders/basic.gl");
-    loadBasicInstancedShader(exepath+"/data/shaders/basic_instanced.gl");
-#endif
+    loadBasicShader("data/shaders/basic.gl");
+    loadBasicInstancedShader("data/shaders/basic_instanced.gl");
 
     // Map for last update time for hotswaping files
     std::filesystem::file_time_type empty_file_time;
-#if _WINDOWS
     std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
-        {exepath+"\\data\\shaders\\basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
-        {exepath+"\\data\\shaders\\basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
+        {"data/shaders/basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
+        {"data/shaders/basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
     };
-#else
-    std::map<const std::string, std::pair<shader::TYPE, std::filesystem::file_time_type>> shader_update_times = {
-        {exepath+"/data/shaders/basic.gl", {shader::TYPE::BASIC_SHADER, empty_file_time}},
-        {exepath+"/data/shaders/basic_instanced.gl", {shader::TYPE::BASIC_INSTANCED_SHADER, empty_file_time}},
-    };
-#endif
     // Fill in with correct file time
     for (auto &pair : shader_update_times) {
         if(std::filesystem::exists(pair.first)) 
@@ -165,11 +131,7 @@ int main() {
     }
 
     PdbFile pdb_file;
-#if _WINDOWS
-    loadPdbFile(pdb_file, exepath+"\\data\\examples\\pdb\\1bzv.pdb");
-#else
-    loadPdbFile(pdb_file, exepath+"/data/examples/pdb/1bzv.pdb");
-#endif
+    loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
    
     Entities entities;
     createEntitiesFromPdbFile(entities, pdb_file, camera);

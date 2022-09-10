@@ -130,26 +130,13 @@ void createAtomEntity(const glm::vec3 &pos, const glm::vec3 &col, Entities &enti
 }
 
 void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera){
-#if _WINDOWS
 #ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
 #else
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
 #endif
-
-#else
-
-#ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"/data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"/data/models/cylinder.obj");
-#else
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"/data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"/data/models/cylinder.mesh");
-#endif
-
-#endif // _WINDOWS
     static const float relative_cylinder_size = 0.05;
     static const float relative_sphere_size   = 0.3;
 
@@ -709,26 +696,14 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 }
 
 void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera){
-#if _WINDOWS
 #ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
+    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
 #else
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"\\data\\models\\cylinder.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
+    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
 #endif
 
-#else
-
-#ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"/data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), exepath+"/data/models/cylinder.obj");
-#else
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"/data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), exepath+"/data/models/cylinder.mesh");
-#endif
-
-#endif // _WINDOWS
     // @note Assume first model is the correct one
     if (data.models.size() == 0) return;
     auto &model = data.models[0];

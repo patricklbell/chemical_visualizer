@@ -76,22 +76,16 @@ void drawGui(Camera &camera, Entities &entities){
             im_file_dialog_type = "loadMol";
             im_file_dialog.SetCurrentTypeFilterIndex(2);
             im_file_dialog.SetTypeFilters({".mol"});
-#if _WINDOWS
-            im_file_dialog.SetPwd(exepath+"\\data\\examples\\molfiles");
-#else
-            im_file_dialog.SetPwd(exepath+"/data/examples/molfiles");
-#endif
+
+            im_file_dialog.SetPwd("data/examples/molfiles");
             im_file_dialog.Open();
         }
         if (ImGui::Button("Load Protein Database File", ImVec2(ImGui::GetWindowWidth()-10, 20))){
             im_file_dialog_type = "loadPdb";
             im_file_dialog.SetCurrentTypeFilterIndex(1);
             im_file_dialog.SetTypeFilters({".pdb"});
-#if _WINDOWS
-            im_file_dialog.SetPwd(exepath+"\\data\\examples\\pdb");
-#else
-            im_file_dialog.SetPwd(exepath+"/data/examples/pdb");
-#endif
+
+            im_file_dialog.SetPwd("data/examples/pdb");
             im_file_dialog.Open();
         }
 
