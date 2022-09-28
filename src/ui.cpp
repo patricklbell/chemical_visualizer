@@ -106,7 +106,7 @@ void drawGui(Camera &camera, Entities &entities){
             createEntitiesFromMolFile(entities, molfile, camera);
         } else if(im_file_dialog_type == "loadPdb"){
             PdbFile pdbfile;
-            loadPdbFile(pdbfile, p);
+            loadPdbFile(pdbfile, p, &pdb_dictionary);
 
             entities.clear();
             createEntitiesFromPdbFile(entities, pdbfile, camera);

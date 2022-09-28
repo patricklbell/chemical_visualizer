@@ -43,20 +43,51 @@ void initGraphicsPrimitives(){
     sun_color = 10.0f*glm::vec3(0.941, 0.933, 0.849);
 }
 
+constexpr bool do_inverse_cull = false;
+constexpr bool do_transparency = true;
 void drawEntities(const Entities &entities, const Camera &camera){
+    constexpr float line_width = 0.02;
+    auto vp = camera.projection * camera.view;
+
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
+
     glClearColor(0.12,0.13, 0.2,1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    if(do_inverse_cull) {
+        glCullFace (GL_FRONT);
+        glDepthFunc (GL_LEQUAL);
+        glUseProgram(shader::null_program);
+        glUniform1f(shader::null_uniforms.line_width, line_width);
+        for (const auto &m_e : entities.mesh_entities) {
+            // @speed precalculate since most entities are static
+            auto model = createModelMatrix(m_e.position, m_e.rotation, m_e.scale);
+            auto mvp = vp * model;
+            
+            glUniformMatrix4fv(shader::null_uniforms.mvp, 1, GL_FALSE, &mvp[0][0]);
+
+            const auto &mesh = m_e.mesh;
+            glBindVertexArray(mesh.vao);
+            for (int j = 0; j < mesh.num_materials; ++j) {
+                glDrawElements(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]));
+            }
+        }
+        glDepthFunc (GL_LESS);
+        glCullFace (GL_BACK);
+    }
+
+    if(do_transparency) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
     glUseProgram(shader::basic_program);
     glUniform3fv(shader::basic_uniforms.sun_color, 1, &sun_color[0]);
     glUniform3fv(shader::basic_uniforms.sun_direction, 1, &sun_direction[0]);
     glUniform3fv(shader::basic_uniforms.camera_position, 1, &camera.position[0]);
 
-    auto vp = camera.projection * camera.view;
     for (const auto &m_e : entities.mesh_entities) {
         // @speed precalculate since most entities are static
         auto model = createModelMatrix(m_e.position, m_e.rotation, m_e.scale);
@@ -65,7 +96,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
         glUniformMatrix4fv(shader::basic_uniforms.mvp, 1, GL_FALSE, &mvp[0][0]);
         glUniformMatrix4fv(shader::basic_uniforms.model, 1, GL_FALSE, &model[0][0]);
 
-        glUniform3fv(shader::basic_uniforms.albedo, 1, &m_e.albedo[0]);
+        glUniform4fv(shader::basic_uniforms.albedo, 1, &m_e.albedo[0]);
 
         const auto &mesh = m_e.mesh;
         glBindVertexArray(mesh.vao);
@@ -73,13 +104,16 @@ void drawEntities(const Entities &entities, const Camera &camera){
             glDrawElements(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]));
         }
     }
+    if(do_transparency) {
+        glDisable(GL_BLEND);
+    }
 
     int num_instance_meshes = entities.instanced_meshes.size();
     int num_instance_entities = entities.instanced_entities.size();
     if(num_instance_meshes > 0 && num_instance_entities > 0) {
         std::vector<std::vector<glm::mat4>> instanced_models(num_instance_meshes, std::vector<glm::mat4>());
         std::vector<std::vector<glm::mat4>> instanced_mvps(num_instance_meshes, std::vector<glm::mat4>());
-        std::vector<std::vector<glm::vec3>> instanced_albedos(num_instance_meshes, std::vector<glm::vec3>());
+        std::vector<std::vector<glm::vec4>> instanced_albedos(num_instance_meshes, std::vector<glm::vec4>());
     
         for(const auto &i_e : entities.instanced_entities) {
             auto model = createModelMatrix(i_e.position, i_e.rotation, i_e.scale);
@@ -89,11 +123,6 @@ void drawEntities(const Entities &entities, const Camera &camera){
             instanced_mvps[i_e.instance_mesh].push_back(mvp);
             instanced_albedos[i_e.instance_mesh].push_back(i_e.albedo);
         }
-
-        glUseProgram(shader::basic_instanced_program);
-        glUniform3fv(shader::basic_instanced_uniforms.sun_color, 1, &sun_color[0]);
-        glUniform3fv(shader::basic_instanced_uniforms.sun_direction, 1, &sun_direction[0]);
-        glUniform3fv(shader::basic_instanced_uniforms.camera_position, 1, &camera.position[0]);
 
         // @speed I think this could be done by making one shared buffer for all instanced meshes
         // and indexing into it which would propably be faster
@@ -106,16 +135,16 @@ void drawEntities(const Entities &entities, const Camera &camera){
             GLuint albedo_vbo;
             glGenBuffers(1, &albedo_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, albedo_vbo);
-            glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::vec3), &instanced_albedos[i][0], GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, num*sizeof(instanced_albedos[0][0]), &instanced_albedos[i][0], GL_STATIC_DRAW);
 
             glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 3, GL_FLOAT, false, 0, 0);
+            glVertexAttribPointer(2, 4, GL_FLOAT, false, 0, 0);
             glVertexAttribDivisor(2, 1);  
 
             GLuint model_vbo;
             glGenBuffers(1, &model_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, model_vbo);
-            glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::mat4), &instanced_models[i][0], GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, num*sizeof(instanced_models[0][0]), &instanced_models[i][0], GL_STATIC_DRAW);
 
             constexpr auto v4_s = sizeof(glm::vec4);
             glEnableVertexAttribArray(3);
@@ -134,7 +163,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
             GLuint mvp_vbo;
             glGenBuffers(1, &mvp_vbo);
             glBindBuffer(GL_ARRAY_BUFFER, mvp_vbo);
-            glBufferData(GL_ARRAY_BUFFER, num*sizeof(glm::mat4), &instanced_mvps[i][0], GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, num*sizeof(instanced_mvps[0][0]), &instanced_mvps[i][0], GL_STATIC_DRAW);
 
             glEnableVertexAttribArray(7);
             glVertexAttribPointer(7, 4,  GL_FLOAT, GL_FALSE, 4*v4_s, (void*)0);
@@ -149,9 +178,35 @@ void drawEntities(const Entities &entities, const Camera &camera){
             glVertexAttribDivisor(9,  1);
             glVertexAttribDivisor(10, 1);
 
+            if(do_inverse_cull) {
+                glCullFace (GL_FRONT);
+                glDepthFunc (GL_LEQUAL);
+                glUseProgram(shader::null_instanced_program);
+                glUniform1f(shader::null_instanced_uniforms.line_width, line_width);
+
+                glBindVertexArray(mesh.vao);
+                for (int j = 0; j < mesh.num_materials; ++j) {
+                    glDrawElementsInstanced(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]), num);
+                }
+                glDepthFunc (GL_LESS);
+                glCullFace (GL_BACK);
+            }
+
+            glUseProgram(shader::basic_instanced_program);
+            glUniform3fv(shader::basic_instanced_uniforms.sun_color, 1, &sun_color[0]);
+            glUniform3fv(shader::basic_instanced_uniforms.sun_direction, 1, &sun_direction[0]);
+            glUniform3fv(shader::basic_instanced_uniforms.camera_position, 1, &camera.position[0]);
+
+            if(do_transparency) {
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }
             glBindVertexArray(mesh.vao);
             for (int j = 0; j < mesh.num_materials; ++j) {
                 glDrawElementsInstanced(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]), num);
+            }
+            if(do_transparency) {
+                glDisable(GL_BLEND);
             }
         }
     }

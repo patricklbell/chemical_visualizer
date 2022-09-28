@@ -5,9 +5,11 @@
 
 #include <GLFW/glfw3.h>
 
-GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepends, bool geometry);
-void loadBasicShader(std::string path);
-void loadBasicInstancedShader(std::string path);
+GLuint loadShader(std::string_view vertex_fragment_file_path, std::string_view macro_prepends, bool geometry);
+void loadBasicShader(std::string_view path);
+void loadBasicInstancedShader(std::string_view path);
+void loadNullShader(std::string_view path);
+void loadNullInstancedShader(std::string_view path);
 void deleteShaderPrograms();
 
 namespace shader {
@@ -24,6 +26,14 @@ namespace shader {
 
     extern GLuint basic_instanced_program;
     extern struct BasicUniforms basic_instanced_uniforms;
+
+    extern GLuint null_program;
+    extern struct NullUniforms {
+        GLuint mvp, line_width;
+    } null_uniforms;
+
+    extern GLuint null_instanced_program;
+    extern struct NullUniforms null_instanced_uniforms;
 
     extern std::string glsl_version;
 }

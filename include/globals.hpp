@@ -12,5 +12,7 @@
 #define PI           3.14159265359
 
 extern GLFWwindow* window;
+struct PdbDictionary;
+extern PdbDictionary pdb_dictionary;
 
 #endif

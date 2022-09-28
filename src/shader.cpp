@@ -27,13 +27,19 @@ namespace shader {
     GLuint basic_instanced_program;
     struct BasicUniforms basic_instanced_uniforms;
 
+    GLuint null_program;
+    struct NullUniforms null_uniforms;
+
+    GLuint null_instanced_program;
+    struct NullUniforms null_instanced_uniforms;
+
     std::string glsl_version;
 }
 
 using namespace shader;
 
-GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepends="", bool geometry=false) {
-	const char *path = vertex_fragment_file_path.c_str();
+GLuint loadShader(std::string_view vertex_fragment_file_path, std::string_view macro_prepends="", bool geometry=false) {
+	const char *path = vertex_fragment_file_path.data();
 	printf("Loading shader %s.\n", path);
 	const char *fragment_macro = "#define COMPILING_FS 1\n";
 	const char *vertex_macro   = "#define COMPILING_VS 1\n";
@@ -64,7 +70,7 @@ GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepe
 
 	printf("Compiling and linking shader: %s\n", path);
 
-    char *vertex_shader_code[] = {(char*)glsl_version.c_str(), (char*)vertex_macro, (char*)macro_prepends.c_str(), shader_code};
+    char *vertex_shader_code[] = {(char*)glsl_version.data(), (char*)vertex_macro, (char*)macro_prepends.data(), shader_code};
 
 	glShaderSource(vertex_shader_id, 4, vertex_shader_code, NULL);
 	glCompileShader(vertex_shader_id);
@@ -80,7 +86,7 @@ GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepe
 		return GL_FALSE;
 	}
 
-	char *fragment_shader_code[] = {(char*)glsl_version.c_str(), (char*)fragment_macro, (char*)macro_prepends.c_str(), shader_code};
+	char *fragment_shader_code[] = {(char*)glsl_version.data(), (char*)fragment_macro, (char*)macro_prepends.data(), shader_code};
 
 	glShaderSource(fragment_shader_id, 4, fragment_shader_code, NULL);
 	glCompileShader(fragment_shader_id);
@@ -100,7 +106,7 @@ GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepe
 		printf("Compiling additional geometry shader.\n");
 		const char *geometry_macro = "#define COMPILING_GS 1\n";
 		geometry_shader_id = glCreateShader(GL_GEOMETRY_SHADER);
-		char *geometry_shader_code[] = {(char*)glsl_version.c_str(), (char*)geometry_macro, (char*)macro_prepends.c_str(), shader_code};
+		char *geometry_shader_code[] = {(char*)glsl_version.data(), (char*)geometry_macro, (char*)macro_prepends.data(), shader_code};
 
 		glShaderSource(geometry_shader_id, 4, geometry_shader_code, NULL);
 		glCompileShader(geometry_shader_id);
@@ -143,7 +149,7 @@ GLuint loadShader(std::string vertex_fragment_file_path, std::string macro_prepe
 	return program_id;
 }
 
-void loadBasicShader(std::string path){
+void loadBasicShader(std::string_view path){
     // Create and compile our GLSL program from the shaders
     auto tmp = basic_program;
     basic_program = loadShader(path);
@@ -161,7 +167,7 @@ void loadBasicShader(std::string path){
     basic_uniforms.albedo                      = glGetUniformLocation(basic_program, "albedo");
 }
 
-void loadBasicInstancedShader(std::string path){
+void loadBasicInstancedShader(std::string_view path){
     // Create and compile our GLSL program from the shaders
     auto tmp = basic_instanced_program;
     basic_instanced_program = loadShader(path);
@@ -179,7 +185,38 @@ void loadBasicInstancedShader(std::string path){
     basic_instanced_uniforms.albedo                      = glGetUniformLocation(basic_instanced_program, "albedo");
 }
 
+void loadNullShader(std::string_view path){
+    // Create and compile our GLSL program from the shaders
+    auto tmp = null_program;
+    null_program = loadShader(path);
+    if(null_program == GL_FALSE) {
+        null_program = tmp;
+        return;
+    }
+
+    // Grab uniforms to modify during rendering
+    null_uniforms.mvp                         = glGetUniformLocation(null_program, "mvp");
+    null_uniforms.line_width                  = glGetUniformLocation(null_program, "line_width");
+}
+
+void loadNullInstancedShader(std::string_view path){
+    // Create and compile our GLSL program from the shaders
+    auto tmp = null_instanced_program;
+    null_instanced_program = loadShader(path);
+    if(null_instanced_program == GL_FALSE) {
+        null_instanced_program = tmp;
+        return;
+    }
+
+    // Grab uniforms to modify during rendering
+    null_instanced_uniforms.mvp                         = glGetUniformLocation(null_instanced_program, "mvp");
+    null_instanced_uniforms.line_width                  = glGetUniformLocation(null_instanced_program, "line_width");
+}
+
 
 void deleteShaderPrograms(){
     glDeleteProgram(basic_program);
+    glDeleteProgram(basic_instanced_program);
+    glDeleteProgram(null_program);
+    glDeleteProgram(null_instanced_program);
 }

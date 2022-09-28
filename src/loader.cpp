@@ -65,15 +65,15 @@ static const float sphere_r = 0.7;
 static const float cylinder_r = 0.2;
 static const float bond_gap_r = 0.1;
 
-glm::vec3 getColorFromSymbol(std::string symbol) {
+glm::vec4 getColorFromSymbol(std::string symbol) {
     auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
-    if(color_1_lu == symbol_to_color_lut.end()) return glm::vec3(1.0);
-    else                                        return color_1_lu->second / 255.f;
+    if(color_1_lu == symbol_to_color_lut.end()) return glm::vec4(1.0);
+    else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
 }
 
 
 
-void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, const glm::vec3 &pos_2, const glm::vec3 &col_2, Entities &entities, float radius=cylinder_r) {
+void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
     auto delta = pos_2 - pos_1;
     auto distance = glm::length(delta); 
 
@@ -95,12 +95,12 @@ void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, co
 }
 
 void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c, Entities &entities, float r=cylinder_r) {
-    createSingleBondEntities(p, glm::vec3(1,0,0), p+a, glm::vec3(1,0,0), entities,r);
-    createSingleBondEntities(p, glm::vec3(0,1,0), p+b, glm::vec3(0,1,0), entities,r);
-    createSingleBondEntities(p, glm::vec3(0,0,1), p+c, glm::vec3(0,0,1), entities,r);
+    createSingleBondEntities(p, glm::vec4(1,0,0,1), p+a, glm::vec4(1,0,0,1), entities,r);
+    createSingleBondEntities(p, glm::vec4(0,1,0,1), p+b, glm::vec4(0,1,0,1), entities,r);
+    createSingleBondEntities(p, glm::vec4(0,0,1,1), p+c, glm::vec4(0,0,1,1), entities,r);
 }
 
-void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, const glm::vec3 &pos_2, const glm::vec3 &col_2, Entities &entities, float radius=cylinder_r) {
+void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
     auto v_offset = anyPerpendicular(pos_2 - pos_1);
     for(int j = 0; j < 2; ++j){
         auto offset_1 = pos_1 + bond_gap_r*v_offset;
@@ -110,7 +110,7 @@ void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, co
     }
 }
 
-void createTripleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, const glm::vec3 &pos_2, const glm::vec3 &col_2, Entities &entities, float radius=cylinder_r) {
+void createTripleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
     auto v_offset = anyPerpendicular(pos_2 - pos_1);
     for(int j = 0; j < 3; ++j){
         auto offset_1 = pos_1 + bond_gap_r*v_offset;
@@ -120,7 +120,7 @@ void createTripleBondEntities(const glm::vec3 &pos_1, const glm::vec3 &col_1, co
     }
 }
 
-void createAtomEntity(const glm::vec3 &pos, const glm::vec3 &col, Entities &entities, float radius=sphere_r) {
+void createAtomEntity(const glm::vec3 &pos, const glm::vec4 &col, Entities &entities, float radius=sphere_r) {
     auto &m_e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
 
     m_e.albedo = col;
@@ -255,7 +255,83 @@ void createResidueId(int seq_num, char res_name[4], char chain_id, char i_code, 
     sprintf(result, "%3s%c%4d%c", res_name, chain_id, seq_num, i_code); 
 }
 
-void loadPdbFile(PdbFile &data, std::string path){
+void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path) {
+    FILE *f;
+    f=fopen(path.data(), "r");
+    if (!f) {
+        fprintf(stderr, "Error in reading pdb dictionary file %s.\n", path.data());
+        return;
+    }
+
+    printf("----------------Loading Pdb Dictionary File %s----------------\n", path.data());
+
+    // @note Assumes line is less than 1024 characters
+    char line[1024];
+    char record_name[8];
+
+    std::unordered_map<std::string, PdbDictionaryConnect> *current_residue_connections = nullptr;
+    while(1) {
+        if(fgets(line, 1024, f) == NULL) break;
+
+        if(strlen(line) >= 6) {
+            substrString(line, 0, 6, record_name);
+
+            if(!strcmp(record_name, "RESIDUE")) {
+                char res_name[4];
+                substrString(line, 10, 12,  res_name);
+
+                current_residue_connections = &dict.residues.try_emplace(std::string(res_name)).first->second;
+
+                //printf("RESDUE: res_name %s \n", res_name); // @debug
+            } else if(!strcmp(record_name, "CONECT ")) { 
+                if(current_residue_connections == nullptr) continue;
+
+                char atom_name[5];
+                substrString(line, 12, 15, atom_name);
+
+                int num_bonds = 0;
+                substrInt(line, 19, 19, &num_bonds);
+
+                char bonded_atom_name[5];
+
+                //printf("CONECT: %s num %d --> ", atom_name, num_bonds); // @debug
+
+                for(int i = 0; i < num_bonds; i++) {
+                    substrString(line, 21 + i*5, 24 + i*5, bonded_atom_name);
+
+                    //if(i == num_bonds - 1)
+                    //    printf("%s\n", bonded_atom_name);
+                    //else
+                    //    printf("%s, ", bonded_atom_name);
+
+                    // @todo make this hashing system better
+                    std::string atom_name_1 = std::string(atom_name);
+                    std::string atom_name_2 = std::string(bonded_atom_name);
+                    std::string name_hash;
+                    if(atom_name_1.compare(atom_name_2) == -1) // Compares alphabetically
+                        name_hash = atom_name_1 + atom_name_2;
+                    else
+                        name_hash = atom_name_2 + atom_name_1;
+                    auto lu = current_residue_connections->find(name_hash);
+
+                    // Check if a connection exists, if not, create one
+                    PdbDictionaryConnect *connect;
+                    if(lu == current_residue_connections->end()) {
+                        connect = &current_residue_connections->try_emplace(name_hash).first->second;
+                        connect->atom_name_1 = atom_name_1;
+                        connect->atom_name_2 = atom_name_2;
+                        connect->type = PdbConnectionType::UNKNOWN; // 0
+                    } else {
+                        connect = &lu->second;
+                    }
+                    connect->type = (PdbConnectionType)glm::min((unsigned int)connect->type + 1, (unsigned int)PdbConnectionType::TRIPLE_REDUNDANT); // Fix this C++!
+                }
+            }
+        }
+    }
+}
+
+void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
     FILE *f;
     f=fopen(path.c_str(), "r");
     if (!f) {
@@ -300,7 +376,7 @@ void loadPdbFile(PdbFile &data, std::string path){
                 atom.serial = serial;
                 atom.is_heterogen = !strcmp(record_name, "HETATM");
 
-                substrString(line, 12, 15,  atom.name);
+                substrString(line, 13, 16,  atom.name);
 
                 substrString(line, 17, 19,  atom.res_name);
                 substrChar  (line, 21,     &atom.chain_id);
@@ -356,9 +432,8 @@ void loadPdbFile(PdbFile &data, std::string path){
 
                 //if(atom.is_heterogen) printf("HETATM:");
                 //else                  printf("ATOM  :");
-                //printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d position ", 
+                //printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d\n", 
                 //        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
-                //printVector(atom.position);
             } else if(!strcmp(record_name, "CONECT")) { 
                 int atom_id;
                 int connect_ids[4];
@@ -466,7 +541,6 @@ void loadPdbFile(PdbFile &data, std::string path){
 
     // Processing after loading from file
     for(auto &model : data.models) {
-
         // Label residue type based on secondary structures
         for(auto &j : model.helices) {
             auto &helix = j.second;
@@ -499,6 +573,48 @@ void loadPdbFile(PdbFile &data, std::string path){
 
                     auto &residue = lu->second;
                     residue.type = PdbResidueType::STRAND;
+                }
+            }
+        }
+
+        // Create connections for unspecified residues from dictionary
+        if(dict != nullptr) {
+            for(auto &rp : model.residues) {
+
+                auto &residue = rp.second;
+
+                auto res_lu = dict->residues.find(std::string(residue.res_name));
+
+                // The residue isn't in our dictionary
+                if(res_lu == dict->residues.end()) continue;
+
+                printf("DICT RESIDUE: res_name %s chain_id %c i_code %c res_seq %d\n", 
+                        residue.res_name, residue.chain_id, residue.i_code, residue.res_seq); // @debug
+
+                auto &residue_connections = res_lu->second;
+                for(auto &ap : residue_connections) {
+                    auto atom_1_lu = residue.atom_name_id.find(ap.second.atom_name_1);
+                    if(atom_1_lu == residue.atom_name_id.end()) {
+                        //fprintf(stderr, "Atom %s in residue %s's dictionary doesn't exist in file\n", ap.second.atom_name_1.c_str(), residue.res_name);
+                        continue;
+                    }
+                    auto &atom_1_id = atom_1_lu->second;
+                    auto atom_2_lu = residue.atom_name_id.find(ap.second.atom_name_2);
+                    if(atom_2_lu == residue.atom_name_id.end()) {
+                        //fprintf(stderr, "Atom %s in residue %s's dictionary doesn't exist in file\n", ap.second.atom_name_2.c_str(), residue.res_name);
+                        continue;
+                    }
+                    auto &atom_2_id = atom_2_lu->second;
+
+                    auto hash = hashBondPair(atom_1_id, atom_2_id);
+                    auto lu = model.connections.find(hash);
+                    if(lu == model.connections.end()) {
+                        printf("DICT CONECT: %d --> %d of type %d\n", atom_1_id, atom_2_id, ap.second.type);
+                        auto &b = model.connections.try_emplace(hash).first->second;
+                        b.atom_1_id = atom_1_id;
+                        b.atom_2_id = atom_2_id;
+                        b.type = ap.second.type;
+                    }
                 }
             }
         }
@@ -551,9 +667,9 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     const int num_planes = planes.size();
 
     glm::vec3 previous_normal = planes[0].normal;
-    auto helix_color = glm::vec3(255, 105, 180) / 255.f;
-    auto strand_color = glm::vec3(255, 211, 0) / 255.f;
-    auto coil_color = glm::vec3(220, 220, 220) / 255.f;
+    auto helix_color = glm::vec4(glm::vec3(255, 105, 180) / 255.f, 1.0);
+    auto strand_color = glm::vec4(glm::vec3(255, 211, 0) / 255.f, 1.0);
+    auto coil_color = glm::vec4(glm::vec3(220, 220, 220) / 255.f, 1.0);
     for(int i = 0; i < num_planes - 1; i++) {
         auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
 
@@ -709,7 +825,7 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     auto &model = data.models[0];
 
     static const float relative_cylinder_size = 0.05;
-    static const float relative_sphere_size   = 0.3;
+    static const float relative_sphere_size   = 0.1;
     float avg_bond_length = 0.0;
     for(const auto &p : model.connections) {
         auto &b = p.second;
@@ -721,7 +837,7 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        if(!atom_1.is_heterogen && !atom_2.is_heterogen) continue;
+        //if(!atom_1.is_heterogen && !atom_2.is_heterogen) continue;
 
         avg_bond_length += glm::length(atom_2.position - atom_1.position);
     }
@@ -743,13 +859,18 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        if(!atom_1.is_heterogen || !atom_2.is_heterogen) continue;
-        encountered_hetatms.insert(b.atom_1_id);
-        encountered_hetatms.insert(b.atom_2_id);
-
         //printf("Hetero Bond %d --> %d with type %u\n", b.atom_1_id, b.atom_2_id, type);
         auto color_1 = getColorFromSymbol(atom_1.symbol);
         auto color_2 = getColorFromSymbol(atom_2.symbol);
+
+        // Add transparency to connections between non-hetero atoms
+        if(!atom_1.is_heterogen || !atom_2.is_heterogen) {
+            color_1.w = 0.5;
+            color_2.w = 0.5;
+        } else {
+            encountered_hetatms.insert(b.atom_1_id);
+            encountered_hetatms.insert(b.atom_2_id);
+        }
 
         switch(type){
             case PdbConnectionType::SINGLE:
@@ -778,8 +899,15 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     }
     auto center = glm::vec3(0.0);
     for(const auto &p : model.atoms) {
-        auto &a = p.second;
-        center += a.position;
+        auto &atom = p.second;
+        center += atom.position;
+
+        // If atom is part of chain draw it with transparency
+        if(encountered_hetatms.find(atom.serial) == encountered_hetatms.end()) {
+            auto color = getColorFromSymbol(atom.symbol);
+            color.w = 0.5;
+            createAtomEntity(atom.position, color, entities, calc_sphere_r);
+        }
 
         //if(!a.is_heterogen) continue;
         //encountered_hetatms.insert(a.serial);
@@ -821,9 +949,9 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
             // PDB should guarantee that residues' label the alpha carbon as "CA"
             // we just use the "O" of the amine to determine the perpendicular plane 
             // between adjacent amino acids of protein.
-            auto lu_CA1 = r1->atom_name_id.find(" CA ");
+            auto lu_CA1 = r1->atom_name_id.find("CA  ");
             if(lu_CA1  == r1->atom_name_id.end()) continue;
-            auto lu_CA2 = r2->atom_name_id.find(" CA ");
+            auto lu_CA2 = r2->atom_name_id.find("CA  ");
             if(lu_CA2  == r2->atom_name_id.end()) continue;
             //auto lu_O1  = r1->atom_name_id.find(" O  ");
             //if(lu_O1   == r1->atom_name_id.end()) continue;

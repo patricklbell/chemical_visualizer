@@ -35,6 +35,8 @@ GLFWwindow* window;
 #include "entities.hpp"
 #include "loader.hpp"
 
+PdbDictionary pdb_dictionary;
+
 int main() {
     if(!glfwInit()) {
         fprintf(stderr, "Failed to initialize GLFW\n");
@@ -117,6 +119,8 @@ int main() {
 
     loadBasicShader("data/shaders/basic.gl");
     loadBasicInstancedShader("data/shaders/basic_instanced.gl");
+    loadNullShader("data/shaders/null.gl");
+    loadNullInstancedShader("data/shaders/null_instanced.gl");
 
     // Map for last update time for hotswaping files
     std::filesystem::file_time_type empty_file_time;
@@ -130,11 +134,15 @@ int main() {
             pair.second.second = std::filesystem::last_write_time(pair.first);
     }
 
-    PdbFile pdb_file;
-    loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb");
-   
+    // Not necessary if you don't want to see peptide's actual bonds
+    loadPdbDictionaryFile(pdb_dictionary, "data/examples/pdb/het_dictionary.pdb");
+
     Entities entities;
-    createEntitiesFromPdbFile(entities, pdb_file, camera);
+    {
+        PdbFile pdb_file;
+        loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb", &pdb_dictionary);
+        createEntitiesFromPdbFile(entities, pdb_file, camera);
+    }
 
     initGui();
     initControls();

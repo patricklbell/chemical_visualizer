@@ -21,31 +21,26 @@ void main(){
 #if COMPILING_FS
 
 #define PI                 3.14159265359
-#define AMBIENT_INTENSITY  0.1
-#define DIFFUSE_INTENSITY  0.9
+#define AMBIENT_INTENSITY  0.4
+#define DIFFUSE_INTENSITY  0.
+#define SPECULAR_EXP       5.0
+#define SPECULAR_INT       0.8
 #define PBR                1
+#define GOOCH              0
+#define DIRECTIONAL        0
 
 in vec3 position;
 in vec3 normal;
 
 layout (location = 0) out vec4 out_color;
 
-#ifdef BLOOM
-layout (location = 1) out vec4 out_bloom_color; 
-#endif
-
-uniform vec3 albedo;
+uniform vec4 albedo;
 
 uniform vec3      sun_direction;
 uniform vec3      sun_color;
 uniform vec3      camera_position;
 
-#ifndef PBR
-uniform float     specular_exp;
-uniform float     specular_int;
-#endif
-
-#ifdef PBR
+#if PBR
 // Takes normal, halfway vector between view angle and light angle
 // Parameter a -> alpha describing roughness usually aplha = roughness^2
 float distributionGGX(vec3 N, vec3 H, float roughness)
@@ -116,7 +111,7 @@ vec3 brdfSchlickGGX(vec3 position, vec3 normal, vec3 albedo, vec3 light_dir, vec
 }
 #endif
 
-#ifndef PBR
+#if DIRECTIONAL 
 vec3 calcDirectionalLight(vec3 in_position, vec3 in_normal)
 {
     vec3 ambient_col = sun_color * AMBIENT_INTENSITY;
@@ -131,8 +126,8 @@ vec3 calcDirectionalLight(vec3 in_position, vec3 in_normal)
         vec3 halfway_dir = normalize(-sun_direction + view_dir);
         float specular_factor = dot(in_normal, halfway_dir);
         if (specular_factor > 0) {
-            specular_factor = pow(specular_factor, specular_exp);
-            specular_col = sun_color * specular_int * specular_factor;
+            specular_factor = pow(specular_factor, SPECULAR_EXP);
+            specular_col = sun_color * SPECULAR_INT * specular_factor;
         }
     }
 
@@ -140,17 +135,48 @@ vec3 calcDirectionalLight(vec3 in_position, vec3 in_normal)
 }
 #endif
 
+
+#if GOOCH
+const vec3 gooch_color_1 = vec3(0,0,1.0);
+const vec3 gooch_color_2 = vec3(0.1,0,0);
+vec3 gooch_shading(vec3 m_color, //color of the mesh
+                   vec3 l_direction, //light direction
+                   vec3 v_normal, //normal
+                   vec3 c_direction) //camera direction
+{
+    float a = 0.1;
+    float b = 0.9;
+
+    float NL = dot(normalize(v_normal), normalize(l_direction));
+    
+    float it = ((1 + NL) / 2);
+    vec3 color = (1-it) * (gooch_color_1 + a*m_color.xyz) + it * (gooch_color_2 + b*m_color.xyz);
+    
+    //Highlights
+    vec3 R = reflect(-normalize(l_direction), normalize(v_normal));
+    float ER = clamp( dot(normalize(c_direction), normalize(R)) , 0, 1);
+    
+    vec4 spec = vec4(SPECULAR_INT) * pow(ER, SPECULAR_EXP);
+
+    return vec3(color+spec.xyz);
+}
+#endif
+
 void main() {
-
-#ifndef PBR
-    vec3 hdr_color = albedo * calcDirectionalLight(position, normal);
+#if GOOCH
+    vec3 hdr_color = gooch_shading(albedo.rgb,  -sun_direction, normal, position - camera_position);
 #endif
 
-#ifdef PBR
-    float ao = 0.4; 
-    vec3 ambient = albedo * ao;
-    vec3 hdr_color = ambient + brdfSchlickGGX(position, normal, albedo, -sun_direction, sun_color);
+#if DIRECTIONAL 
+    vec3 hdr_color = albedo.rgb * calcDirectionalLight(position, normal);
 #endif
+
+#if PBR
+    float ao = AMBIENT_INTENSITY; 
+    vec3 ambient = albedo.rgb * ao;
+    vec3 hdr_color = ambient + brdfSchlickGGX(position, normal, albedo.rgb, -sun_direction, sun_color);
+#endif
+
     const float gamma = 1.5;
 
     // reinhard tone mapping
@@ -159,7 +185,7 @@ void main() {
     // gamma correction 
     mapped = pow(mapped, vec3(1.0 / gamma));
 
-    out_color = vec4(mapped, 1.0);
+    out_color = vec4(mapped, albedo.a);
 }
 
 #endif

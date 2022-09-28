@@ -184,7 +184,7 @@ struct PdbResidue {
     std::unordered_map<std::string, int> atom_name_id; // atom_name -> serial
 
     // Used for constructing secondary structures, not inherent to residue
-    // assume coil as pdb doesn't specify
+    // assume coil if pdb doesn't specify
     PdbResidueType type = PdbResidueType::COIL;
 };
 
@@ -216,6 +216,18 @@ struct PdbFile {
     std::vector<PdbModel> models;
 };
 
+struct PdbDictionaryConnect {
+    std::string atom_name_1 = "";
+    std::string atom_name_2 = "";
+    PdbConnectionType type = PdbConnectionType::UNKNOWN;
+};
+
+struct PdbDictionary {
+    // This is a map between residue names and the residue's connections, (stored as map between atom_name_1+2) -> connection
+    // We need to use names since the dictionary doesn't have a concept of atom id
+    std::unordered_map<std::string, std::unordered_map<std::string, PdbDictionaryConnect>> residues; 
+};
+
 // Approximates plane of residue with peptide bonds
 struct PeptidePlane {
     PdbResidue *residue_1;
@@ -227,7 +239,8 @@ struct PeptidePlane {
     bool flipped = false;
 };
 
-void loadPdbFile(PdbFile &data, std::string path);
+void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path);
+void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict=nullptr);
 void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera);
 
 // --------------------------------Color LUTs-------------------------------- //
