@@ -775,10 +775,6 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
         int p1_i = i-1;
         int p4_i = i+2;
         if(i == 0) {
-            glm::vec3 projected_profile[num_splines];
-            projectPointsOnPlane(num_splines, planes[0].position, planes[0].right, planes[0].normal, pf1, projected_profile);
-            createClosedFacedFromProfile(planes[0].position, num_splines, projected_profile, mesh, false);
-
             p1_i = i;
         } else if(i == num_planes - 2) {
             p4_i = i+1;
@@ -805,13 +801,13 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                         arrow_profile, arrow_profile_normals, arrow_tip_profile, arrow_tip_profile_normals, 
                         arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
                         &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal, entities);
+                        &normals_tube[0][0], previous_normal);
             } else {
                 createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
                         arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
                         arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
                         &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal, entities);
+                        &normals_tube[0][0], previous_normal);
             }
             createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
 
@@ -819,19 +815,40 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
             //        circle_profile, projected_profile);
             //createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
         } else {
-            if(i == num_planes - 2) {
+            if (i == 0) {
+                auto bref = (planes[i].right + planes[i+1].right) / 2.f;
+                auto tn = glm::normalize(planes[i].forward);
+                glm::vec3 bn;
+                if (glm::length(previous_normal) > 0.001) {
+                    bn = glm::normalize(glm::cross(tn, previous_normal));
+                }
+                else {
+                    bn = perpendicularComponent(bref, tn);
+                }
+                auto n = glm::cross(bn, tn);
+
                 glm::vec3 projected_profile[num_splines];
-                projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, pf2, projected_profile);
-                createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, true);
+                projectPointsOnPlane(num_splines, planes[i].position, bn, n, pf1, projected_profile);
+                createClosedFacedFromProfile(planes[i].position, num_splines, projected_profile, mesh, true);
             }
+
             createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
                     planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal, entities);
+                    &normals_tube[0][0], previous_normal);
             createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+
+            if(i == num_planes - 2) {
+                auto tn = glm::normalize(planes[i+1].forward);
+                auto n = previous_normal;
+                auto bn = glm::cross(tn, n);
+
+                glm::vec3 projected_profile[num_splines];
+                projectPointsOnPlane(num_splines, planes[i+1].position, bn, n, pf2, projected_profile);
+                createClosedFacedFromProfile(planes[i+1].position, num_splines, projected_profile, mesh, false);
+            }
         }
         createMeshVao(mesh);
     }
-    //createDebugCartesian(planes[num_planes-1].position, 0.5f*planes[num_planes-1].normal, 0.5f*planes[num_planes-1].right, 0.5f*planes[num_planes-1].forward, entities, 0.01);
 }
 
 void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera){
