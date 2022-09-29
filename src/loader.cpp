@@ -364,8 +364,8 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
     char line[1024];
     char record_name[7];
 
-    auto &model = data.models.emplace_back();
-    model.serial = 0;
+    auto model = &data.models.try_emplace(0).first->second;
+    model->serial = 0;
     // Handle model command being missing
     bool first_model_flag = true;
 
@@ -376,28 +376,26 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
             substrString(line, 0, 5, record_name);
 
             if(!strcmp(record_name, "MODEL ")) {
+                int serial;
+                sscanf(line, "MODEL %d", &serial);
+
                 if(first_model_flag) {
                     first_model_flag = false;
                 } else {
-                    model = data.models.emplace_back();
+                    model = &data.models.try_emplace(serial).first->second;
                 }
-                sscanf(line, "MODEL %d", &model.serial);
-                printf("MODEL %d\n", model.serial);
+                
+                printf("MODEL %d\n", model->serial);
+                model->serial = serial;
             } else if(!strcmp(record_name, "HETATM") || !strcmp(record_name, "ATOM  ")) {
                 int serial;
                 substrSscanf(line, 6, 10, " %d", &serial);
 
                 // @note this overwrites duplicate ids
-                auto lu0 = model.atoms.find(serial);
-                if(lu0 != model.atoms.end()) printf("Collision for serial %d\n", serial);
-
-                // Just presentation
-                //char chain_id;
-                //substrChar(line, 21, &chain_id);
-                //if(chain_id != 'B') continue;
-                ////////////////
+                auto lu0 = model->atoms.find(serial);
+                if(lu0 != model->atoms.end()) printf("Collision for serial %d\n", serial);
                 
-                PdbAtom &atom = model.atoms[serial];
+                PdbAtom &atom = model->atoms[serial];
                 atom.serial = serial;
                 atom.is_heterogen = !strcmp(record_name, "HETATM");
 
@@ -408,10 +406,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 substrInt   (line, 22, 25, &atom.res_seq);
 
                 auto residue_id = hashResidueSeqChain(atom.res_seq, atom.chain_id);
-                auto lu = model.residues.find(residue_id);
+                auto &res_lu = model->residues.find(residue_id);
                 // If residue doesn't exist create it
-                if(lu == model.residues.end()) {
-                    auto &residue = model.residues.try_emplace(residue_id).first->second;
+                if(res_lu == model->residues.end()) {
+                    auto &residue = model->residues.try_emplace(residue_id).first->second;
 
                     memcpy(residue.res_name, atom.res_name, 4);
                     residue.chain_id = atom.chain_id;
@@ -419,18 +417,18 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                     residue.res_seq  = atom.res_seq;
 
                     // Add new residue to chain
-                    auto lu = model.chains.find(atom.chain_id);
+                    auto &chain_lu = model->chains.find(atom.chain_id);
                     // If chain doesn't exist create it
                     // @note doesn't account for empty chain_id i.e ' '
-                    if(lu == model.chains.end()) {
-                        auto &chain = model.chains.try_emplace(atom.chain_id).first->second;
+                    if(chain_lu == model->chains.end()) {
+                        auto &chain = model->chains.try_emplace(atom.chain_id).first->second;
                         chain.chain_id = atom.chain_id;
                         // @note pointers to values in unordered_map are stable 
                         chain.residues.push_back(&residue);
 
                         printf("CHAIN : %c\n", chain.chain_id); // @debug
                     } else {
-                        auto &chain = lu->second;
+                        auto &chain = chain_lu->second;
                         chain.residues.push_back(&residue);
                     }
 
@@ -440,11 +438,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                     printf("RESDUE: res_name %s chain_id %c i_code %c res_seq %d\n", 
                             residue.res_name, residue.chain_id, residue.i_code, residue.res_seq); // @debug
                 } else {
-                    auto &residue = lu->second;
+                    auto &residue = res_lu->second;
                     residue.atom_ids.push_back(atom.serial);
                     residue.atom_name_id[atom.name] = atom.serial;
                 }
-
 
                 substrFloat(line, 30, 37, &atom.position.x);
                 substrFloat(line, 38, 45, &atom.position.y);
@@ -474,12 +471,12 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 for(int i = 0; i < matches; ++i) {
                     printf("%d, ", connect_ids[i]);
                     auto hash = hashBondPair(atom_id, connect_ids[i]);
-                    auto lu = model.connections.find(hash);
-                    if(lu != model.connections.end()) {
+                    auto lu = model->connections.find(hash);
+                    if(lu != model->connections.end()) {
                         auto &b = lu->second;
                         b.type = PdbConnectionType((unsigned int)b.type + 1);
                     } else {
-                        auto b = &model.connections[hash];
+                        auto b = &model->connections[hash];
                         b->atom_1_id = atom_id;
                         b->atom_2_id = connect_ids[i];
                         b->type = PdbConnectionType::SINGLE;
@@ -489,7 +486,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
             } else if(!strcmp(record_name, "HELIX ")) { 
                 int serial;
                 substrInt(line, 7, 9, &serial);
-                auto &helix = model.helices.try_emplace(serial).first->second;
+                auto &helix = model->helices.try_emplace(serial).first->second;
                 helix.serial = serial;
                 
                 substrString(line, 11, 13,  helix.id_code);
@@ -513,18 +510,18 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 substrString(line, 11, 13, sheet_id);
 
                 bool is_first = false;
-                auto lu = model.sheets.find(sheet_id);
+                auto lu = model->sheets.find(sheet_id);
                 PdbSheet *sheet;
-                if(lu == model.sheets.end()) {
+                if(lu == model->sheets.end()) {
                     // Create and modify sheet only first time
-                    sheet = &model.sheets.try_emplace(sheet_id).first->second;
+                    sheet = &model->sheets.try_emplace(sheet_id).first->second;
                     memcpy(sheet->sheet_id, sheet_id, 4);
                     substrInt(line, 14, 15, &sheet->num_strands);
                     is_first = true;
                     printf("SHEET : sheet_id %s num_strands %d\n",
                             sheet->sheet_id, sheet->num_strands); // @debug
                 } else {
-                    sheet = &model.sheets[sheet_id];
+                    sheet = &model->sheets[sheet_id];
                 }
                 int strand_id;
                 substrInt  (line,  7,  9,  &strand_id);
@@ -565,9 +562,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
     }
 
     // Processing after loading from file
-    for(auto &model : data.models) {
+    for(auto &pair : data.models) {
+        auto& m = pair.second;
         // Label residue type based on secondary structures
-        for(auto &j : model.helices) {
+        for(auto &j : m.helices) {
             auto &helix = j.second;
 
             if(helix.init_chain_id != helix.end_chain_id) fprintf(stderr, "Error: helix chain init and end not equal");
@@ -575,14 +573,14 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 
             for(int seq_num = helix.init_seq_num; seq_num <= helix.end_seq_num; seq_num++) {
                 auto residue_id = hashResidueSeqChain(seq_num, chain_id);
-                auto lu = model.residues.find(residue_id);
-                if(lu == model.residues.end()) continue;
+                auto lu = m.residues.find(residue_id);
+                if(lu == m.residues.end()) continue;
 
                 auto &residue = lu->second;
                 residue.type = PdbResidueType::HELIX;
             }
         }
-        for(auto &j : model.sheets) {
+        for(auto &j : m.sheets) {
             auto &sheet = j.second;
             
             for(auto &k : sheet.strands) {
@@ -593,8 +591,8 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 
                 for(int seq_num = strand.init_seq_num; seq_num <= strand.end_seq_num; seq_num++) {
                     auto residue_id = hashResidueSeqChain(seq_num, chain_id);
-                    auto lu = model.residues.find(residue_id);
-                    if(lu == model.residues.end()) continue;
+                    auto lu = m.residues.find(residue_id);
+                    if(lu == m.residues.end()) continue;
 
                     auto &residue = lu->second;
                     residue.type = PdbResidueType::STRAND;
@@ -604,7 +602,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 
         // Create connections for unspecified residues from dictionary
         if(dict != nullptr) {
-            for(auto &rp : model.residues) {
+            for(auto &rp : m.residues) {
                 auto &residue = rp.second;
 
                 auto res_lu = dict->residues.find(std::string(residue.res_name));
@@ -632,10 +630,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                     auto &atom_2_id = atom_2_lu->second;
 
                     auto hash = hashBondPair(atom_1_id, atom_2_id);
-                    auto lu = model.connections.find(hash);
-                    if(lu == model.connections.end()) {
+                    auto lu = m.connections.find(hash);
+                    if(lu == m.connections.end()) {
                         printf("DICT CONECT: %d --> %d of type %d\n", atom_1_id, atom_2_id, ap.second.type);
-                        auto &b = model.connections.try_emplace(hash).first->second;
+                        auto &b = m.connections.try_emplace(hash).first->second;
                         b.atom_1_id = atom_1_id;
                         b.atom_2_id = atom_2_id;
                         b.type = ap.second.type;
@@ -966,7 +964,7 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     if(!draw_chains) return;
 
     for(const auto &p : model.chains) {
-        auto chain = p.second;
+        auto &chain = p.second;
         if(chain.residues.size() < 2) continue;
 
         std::vector<PeptidePlane> peptide_planes;

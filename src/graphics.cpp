@@ -237,6 +237,10 @@ void drawEntities(const Entities &entities, const Camera &camera){
             if(do_transparency) {
                 glDisable(GL_BLEND);
             }
+
+            glDeleteBuffers(1, &albedo_vbo);
+            glDeleteBuffers(1, &model_vbo);
+            glDeleteBuffers(1, &mvp_vbo);
         }
     }
 }

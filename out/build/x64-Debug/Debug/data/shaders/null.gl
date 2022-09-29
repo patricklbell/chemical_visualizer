@@ -1,0 +1,24 @@
+#if COMPILING_VS
+
+layout (location = 0) in vec3 in_vertex;
+layout (location = 1) in vec3 in_normal;
+
+uniform mat4x4 mvp;
+uniform float line_width;
+
+void main(){
+    vec4 vertex = vec4(in_vertex, 1.0);
+    vertex.xyz += in_normal*line_width;
+    gl_Position = mvp * vertex;
+}
+
+#endif
+
+#if COMPILING_FS
+layout (location = 0) out vec4 out_color;
+
+void main() {
+    out_color = vec4(vec3(0.0), 1.0);
+}
+
+#endif

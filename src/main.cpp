@@ -168,7 +168,7 @@ int main() {
         if(current_time - last_filesystem_hotswap_check >= 2.0){
             last_filesystem_hotswap_check = current_time;
             for (auto &pair : shader_update_times) {
-                if(pair.second.second != std::filesystem::last_write_time(pair.first)){
+                if(std::filesystem::exists(pair.first) && pair.second.second != std::filesystem::last_write_time(pair.first)){
                     pair.second.second = std::filesystem::last_write_time(pair.first);
                     switch (pair.second.first) {
                         case shader::TYPE::BASIC_SHADER:

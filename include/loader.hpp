@@ -213,7 +213,7 @@ struct PdbModel {
 
 struct PdbFile {
     // Each model represents the same structure, mainly for NMR entries
-    std::vector<PdbModel> models;
+    std::unordered_map<int, PdbModel> models; // serial -> model
 };
 
 struct PdbDictionaryConnect {
