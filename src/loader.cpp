@@ -406,7 +406,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 substrInt   (line, 22, 25, &atom.res_seq);
 
                 auto residue_id = hashResidueSeqChain(atom.res_seq, atom.chain_id);
-                auto &res_lu = model->residues.find(residue_id);
+                auto res_lu = model->residues.find(residue_id);
                 // If residue doesn't exist create it
                 if(res_lu == model->residues.end()) {
                     auto &residue = model->residues.try_emplace(residue_id).first->second;
@@ -417,7 +417,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                     residue.res_seq  = atom.res_seq;
 
                     // Add new residue to chain
-                    auto &chain_lu = model->chains.find(atom.chain_id);
+                    auto chain_lu = model->chains.find(atom.chain_id);
                     // If chain doesn't exist create it
                     // @note doesn't account for empty chain_id i.e ' '
                     if(chain_lu == model->chains.end()) {
