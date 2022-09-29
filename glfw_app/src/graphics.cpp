@@ -215,6 +215,10 @@ void drawEntities(const Entities &entities, const Camera &camera){
             for (int j = 0; j < mesh->num_materials; ++j) {
                 glDrawElementsInstanced(mesh->draw_mode, mesh->draw_count[j], mesh->draw_type, (GLvoid*)(sizeof(*mesh->indices)*mesh->draw_start[j]), num);
             }
+
+            glDeleteBuffers(1, &albedo_vbo);
+            glDeleteBuffers(1, &model_vbo);
+            glDeleteBuffers(1, &mvp_vbo);
         }
     }
 }

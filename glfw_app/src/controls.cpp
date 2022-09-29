@@ -165,8 +165,12 @@ void handleControls(GLFWwindow* window, Camera &camera, float dt) {
 
     if(scroll_offset.y != 0){
         float distance_scl = abs(1 + scroll_offset.y*0.1);
+        auto camera_offset = (camera.position - camera.target)*distance_scl;
+        if(glm::length(camera_offset) > camera.far_plane - camera.near_plane) {
+            camera_offset = glm::normalize(camera_offset) * (camera.far_plane - camera.near_plane);
+        }
 
-        camera.position = camera.target + (camera.position - camera.target)*distance_scl;
+        camera.position = camera.target + camera_offset;
         updateCameraView(camera);
 
         // Handle scroll event

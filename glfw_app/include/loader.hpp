@@ -8,7 +8,7 @@
 #include "graphics.hpp"
 
 // Decides how far away the camera is placed to keep model in view
-const float INITIAL_FOV_PORTION = 0.65;
+const float INITIAL_FOV_PORTION = 0.9;
 
 // http://c4.cabrillo.edu/404/ctfile.pdf
 struct MolAtom {

@@ -19,6 +19,9 @@
 
 void Mesh::free_resources(){
     glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &indices_vbo);
+    glDeleteBuffers(1, &vertices_vbo);
+    glDeleteBuffers(1, &normals_vbo);
 
     free(indices);   
     free(vertices);   
