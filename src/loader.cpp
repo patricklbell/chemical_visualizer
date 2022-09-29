@@ -16,6 +16,13 @@
 #include "graphics.hpp"
 #include "utilities.hpp"
 
+// Mostly for making presentation
+constexpr bool draw_water = false;
+constexpr bool draw_residue_atoms = false;
+constexpr float residue_atom_alpha = 0.05;
+constexpr bool draw_chains = true;
+constexpr float chain_alpha = 1.0;
+
 void loadMolFile(MolFile &data, std::string path){
     FILE *f;
     f=fopen(path.c_str(), "r");
@@ -71,7 +78,27 @@ glm::vec4 getColorFromSymbol(std::string symbol) {
     else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
 }
 
+void createAtomEntity(const glm::vec3 &pos, const glm::vec4 &col, Entities &entities, float radius=sphere_r) {
+    auto &m_e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
 
+    m_e.albedo = col;
+    m_e.instance_mesh = (int)InstanceNames::SPHERE;
+    m_e.scale = glm::mat3(radius);
+    m_e.position = pos;
+}
+
+void createCylinderEntity(const glm::vec3 &pos_1, const glm::vec3 &pos_2, const glm::vec4 &col, Entities &entities, float radius=cylinder_r) {
+    auto delta = pos_2 - pos_1;
+    auto distance = glm::length(delta); 
+
+    auto &e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
+    e.instance_mesh = (int)InstanceNames::CYLINDER;
+    scaleMat3(e.scale, glm::vec3(distance,  radius, radius));
+
+    e.position = pos_1;
+    e.albedo = col;
+    e.rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
+}
 
 void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
     auto delta = pos_2 - pos_1;
@@ -95,9 +122,10 @@ void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, co
 }
 
 void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c, Entities &entities, float r=cylinder_r) {
-    createSingleBondEntities(p, glm::vec4(1,0,0,1), p+a, glm::vec4(1,0,0,1), entities,r);
-    createSingleBondEntities(p, glm::vec4(0,1,0,1), p+b, glm::vec4(0,1,0,1), entities,r);
-    createSingleBondEntities(p, glm::vec4(0,0,1,1), p+c, glm::vec4(0,0,1,1), entities,r);
+    createAtomEntity(p, glm::vec4(1.0,1.0,1.0,0.5), entities, r);
+    createCylinderEntity(p, p+a, glm::vec4(1,0,0,0.5), entities,r);
+    createCylinderEntity(p, p+b, glm::vec4(0,1,0,0.5), entities,r);
+    createCylinderEntity(p, p+c, glm::vec4(0,0,1,0.5), entities,r);
 }
 
 void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
@@ -105,7 +133,7 @@ void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, co
     for(int j = 0; j < 2; ++j){
         auto offset_1 = pos_1 + bond_gap_r*v_offset;
         auto offset_2 = pos_2 + bond_gap_r*v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius);
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius/2.0);
         v_offset *= -1.0;
     }
 }
@@ -115,18 +143,9 @@ void createTripleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, co
     for(int j = 0; j < 3; ++j){
         auto offset_1 = pos_1 + bond_gap_r*v_offset;
         auto offset_2 = pos_2 + bond_gap_r*v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius);
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius/2.0);
         v_offset = v_offset*glm::angleAxis((float)(2.0/3.0 * PI), glm::normalize(pos_2 - pos_1));
     }
-}
-
-void createAtomEntity(const glm::vec3 &pos, const glm::vec4 &col, Entities &entities, float radius=sphere_r) {
-    auto &m_e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
-
-    m_e.albedo = col;
-    m_e.instance_mesh = (int)InstanceNames::SPHERE;
-    m_e.scale = glm::mat3(radius);
-    m_e.position = pos;
 }
 
 void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera){
@@ -137,8 +156,8 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
     readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
     readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
 #endif
-    static const float relative_cylinder_size = 0.05;
-    static const float relative_sphere_size   = 0.3;
+    static const float relative_cylinder_size = 0.1;
+    static const float relative_sphere_size   = 0.26;
 
     float avg_bond_length = 0.0;
     for(int i = 0; i < data.num_bonds; ++i){
@@ -372,6 +391,12 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 auto lu0 = model.atoms.find(serial);
                 if(lu0 != model.atoms.end()) printf("Collision for serial %d\n", serial);
 
+                // Just presentation
+                //char chain_id;
+                //substrChar(line, 21, &chain_id);
+                //if(chain_id != 'B') continue;
+                ////////////////
+                
                 PdbAtom &atom = model.atoms[serial];
                 atom.serial = serial;
                 atom.is_heterogen = !strcmp(record_name, "HETATM");
@@ -382,11 +407,11 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 substrChar  (line, 21,     &atom.chain_id);
                 substrInt   (line, 22, 25, &atom.res_seq);
 
-                auto reside_id = hashResidueSeqChain(atom.res_seq, atom.chain_id);
-                auto lu = model.residues.find(reside_id);
+                auto residue_id = hashResidueSeqChain(atom.res_seq, atom.chain_id);
+                auto lu = model.residues.find(residue_id);
                 // If residue doesn't exist create it
                 if(lu == model.residues.end()) {
-                    auto &residue = model.residues.try_emplace(reside_id).first->second;
+                    auto &residue = model.residues.try_emplace(residue_id).first->second;
 
                     memcpy(residue.res_name, atom.res_name, 4);
                     residue.chain_id = atom.chain_id;
@@ -580,16 +605,16 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
         // Create connections for unspecified residues from dictionary
         if(dict != nullptr) {
             for(auto &rp : model.residues) {
-
                 auto &residue = rp.second;
 
                 auto res_lu = dict->residues.find(std::string(residue.res_name));
 
                 // The residue isn't in our dictionary
-                if(res_lu == dict->residues.end()) continue;
-
-                printf("DICT RESIDUE: res_name %s chain_id %c i_code %c res_seq %d\n", 
-                        residue.res_name, residue.chain_id, residue.i_code, residue.res_seq); // @debug
+                if(res_lu == dict->residues.end()) {
+                    fprintf(stderr, "RESIDUE: res_name %s chain_id %c i_code %c res_seq %d NOT IN DICTIONARY, Skipping\n", 
+                            residue.res_name, residue.chain_id, residue.i_code, residue.res_seq); // @debug
+                    continue;
+                }
 
                 auto &residue_connections = res_lu->second;
                 for(auto &ap : residue_connections) {
@@ -625,7 +650,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
     constexpr float r = 0.25;
     // @todo these should probably 
-    constexpr int num_splines = 16, num_points_per_spline = 10;
+    constexpr int num_splines = 16, num_points_per_spline = 16;
     glm::vec2 circle_profile[num_splines];
     glm::vec2 circle_profile_normals[num_splines];
     createCircularProfile(num_splines, circle_profile, r);
@@ -667,9 +692,9 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     const int num_planes = planes.size();
 
     glm::vec3 previous_normal = planes[0].normal;
-    auto helix_color = glm::vec4(glm::vec3(255, 105, 180) / 255.f, 1.0);
-    auto strand_color = glm::vec4(glm::vec3(255, 211, 0) / 255.f, 1.0);
-    auto coil_color = glm::vec4(glm::vec3(220, 220, 220) / 255.f, 1.0);
+    auto helix_color = glm::vec4(glm::vec3(255, 105, 180) / 255.f, chain_alpha);
+    auto strand_color = glm::vec4(glm::vec3(255, 211, 0) / 255.f, chain_alpha);
+    auto coil_color = glm::vec4(glm::vec3(220, 220, 220) / 255.f, chain_alpha);
     for(int i = 0; i < num_planes - 1; i++) {
         auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
 
@@ -782,13 +807,13 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                         arrow_profile, arrow_profile_normals, arrow_tip_profile, arrow_tip_profile_normals, 
                         arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
                         &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal);
+                        &normals_tube[0][0], previous_normal, entities);
             } else {
                 createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
                         arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
                         arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
                         &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal);
+                        &normals_tube[0][0], previous_normal, entities);
             }
             createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
 
@@ -803,7 +828,7 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
             }
             createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
                     planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal);
+                    &normals_tube[0][0], previous_normal, entities);
             createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
         }
         createMeshVao(mesh);
@@ -824,8 +849,8 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     if (data.models.size() == 0) return;
     auto &model = data.models[0];
 
-    static const float relative_cylinder_size = 0.05;
-    static const float relative_sphere_size   = 0.1;
+    static const float relative_cylinder_size = 0.10;
+    static const float relative_sphere_size   = 0.15;
     float avg_bond_length = 0.0;
     for(const auto &p : model.connections) {
         auto &b = p.second;
@@ -837,13 +862,15 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        //if(!atom_1.is_heterogen && !atom_2.is_heterogen) continue;
+        //if(!draw_residue_atoms && (!atom_1.is_heterogen || !atom_2.is_heterogen)) continue;
 
         avg_bond_length += glm::length(atom_2.position - atom_1.position);
     }
     avg_bond_length /= model.connections.size();
-    float calc_cylinder_r = avg_bond_length*relative_cylinder_size;
-    float calc_sphere_r   = avg_bond_length*relative_sphere_size;
+    float calc_cylinder_r = glm::max(avg_bond_length*relative_cylinder_size, 0.1f);
+    float calc_sphere_r   = glm::max(avg_bond_length*relative_sphere_size, 0.2f);
+
+    printf("Calc sphere %f, Calc cylinder %f\n", calc_sphere_r, calc_cylinder_r);
 
     // Draw hetero atoms and the bonds between them (including non hetero edge atoms)
     // @speed
@@ -865,8 +892,9 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
 
         // Add transparency to connections between non-hetero atoms
         if(!atom_1.is_heterogen || !atom_2.is_heterogen) {
-            color_1.w = 0.5;
-            color_2.w = 0.5;
+            if(!draw_residue_atoms) continue;
+            color_1.w = residue_atom_alpha;
+            color_2.w = residue_atom_alpha;
         } else {
             encountered_hetatms.insert(b.atom_1_id);
             encountered_hetatms.insert(b.atom_2_id);
@@ -902,10 +930,14 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         auto &atom = p.second;
         center += atom.position;
 
-        // If atom is part of chain draw it with transparency
-        if(encountered_hetatms.find(atom.serial) == encountered_hetatms.end()) {
+        // If atom is not hetero draw it with transparency
+        if(draw_residue_atoms && encountered_hetatms.find(atom.serial) == encountered_hetatms.end()) {
+            // Water is a special case
+            if(!draw_water && !strcmp(atom.res_name, "HOH")) continue;
+
             auto color = getColorFromSymbol(atom.symbol);
-            color.w = 0.5;
+            color.w = residue_atom_alpha;
+            //if(!strcmp(atom.name, "CA  ")) color.w = 1.0;
             createAtomEntity(atom.position, color, entities, calc_sphere_r);
         }
 
@@ -930,6 +962,8 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         auto color = getColorFromSymbol(atom.symbol);
         createAtomEntity(atom.position, color, entities, calc_sphere_r);
     }
+
+    if(!draw_chains) return;
 
     for(const auto &p : model.chains) {
         auto chain = p.second;
@@ -1021,6 +1055,13 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
                 peptide_planes[i].flipped = true;
             }
         }
+
+        //for(int i = 1; i < peptide_planes.size(); i++) {
+            //createDebugCartesian(plane.position, plane.normal)
+            //createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
+            //auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
+            //createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);
+        //}
 
         createPolypeptideEntity(entities, peptide_planes);
     }

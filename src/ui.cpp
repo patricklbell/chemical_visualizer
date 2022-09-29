@@ -1,6 +1,10 @@
 #include <filesystem>
 #include <stack>
 #include <limits>
+#include <iostream>
+#include <iomanip>
+#include <ctime>
+#include <sstream>
 
 // Include GLEW
 #include <GL/glew.h>
@@ -87,6 +91,22 @@ void drawGui(Camera &camera, Entities &entities){
 
             im_file_dialog.SetPwd("data/examples/pdb");
             im_file_dialog.Open();
+        }
+
+
+        if (ImGui::Button("Print Camera", ImVec2(ImGui::GetWindowWidth()-10, 20))){
+            printf("Position: %f, %f, %f, Target: %f, %f, %f\n", camera.position.x, camera.position.y, camera.position.z, camera.target.x, camera.target.y, camera.target.z);
+        }
+
+        if (ImGui::Button("Save Frame", ImVec2(ImGui::GetWindowWidth()-10, 20))){
+            auto t = std::time(nullptr);
+            auto tm = *std::localtime(&t);
+
+            std::ostringstream oss;
+            oss << std::put_time(&tm, "%d-%m-%Y-%H-%M-%S");
+            auto path = "data/screenshots/" + oss.str() + ".tga";
+
+            pushWriteFramebufferToTga(path);
         }
 
         ImGui::SetCursorPosY(window_height - ImGui::GetTextLineHeightWithSpacing()*3);

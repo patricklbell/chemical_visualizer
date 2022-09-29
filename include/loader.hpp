@@ -239,6 +239,8 @@ struct PeptidePlane {
     bool flipped = false;
 };
 
+void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c, Entities &entities, float r);
+
 void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path);
 void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict=nullptr);
 void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera);

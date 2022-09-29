@@ -23,6 +23,9 @@ void initGraphicsPrimitives();
 void bindBackbuffer();
 void drawEntities(const Entities &entities, const Camera &camera);
 
+void pushWriteFramebufferToTga(std::string_view path);
+void checkWriteFrambufferToTga();
+
 namespace graphics{
     extern Mesh sphere;
     extern Mesh cylinder;

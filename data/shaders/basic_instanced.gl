@@ -28,8 +28,8 @@ void main(){
 #define DIFFUSE_INTENSITY  1.0
 #define SPECULAR_EXP       5.0
 #define SPECULAR_INT       0.1
-#define PBR                1
-#define GOOCH              0
+#define PBR                0
+#define GOOCH              1
 #define DIRECTIONAL        0
 
 in vec3 position;

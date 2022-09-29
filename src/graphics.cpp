@@ -43,16 +43,45 @@ void initGraphicsPrimitives(){
     sun_color = 10.0f*glm::vec3(0.941, 0.933, 0.849);
 }
 
-constexpr bool do_inverse_cull = false;
-constexpr bool do_transparency = true;
+bool do_write_tga = false;
+std::string tga_path = "";
+
+void pushWriteFramebufferToTga(std::string_view path) {
+    do_write_tga = true;
+    tga_path = path;
+}
+
+void checkWriteFrambufferToTga() {
+    if(!do_write_tga) return;
+
+    int* buffer = new int[ window_width*window_height*3 ];
+    glReadPixels( 0, 0, window_width, window_height, GL_BGR, GL_UNSIGNED_BYTE, buffer );
+    FILE *fp = fopen(tga_path.data(), "wb");
+    if(fp == NULL) {
+        fprintf(stderr, "Failed to open file %s to write TGA.", tga_path.data());
+        return;
+    }
+
+    printf("----------------Writing Frame to TGA %s----------------\n", tga_path.data());
+    short  TGAhead[] = {0, 2, 0, 0, 0, 0, (short)window_width, (short)window_height, 24};
+    fwrite(TGAhead, sizeof(TGAhead), 1, fp);
+    fwrite(buffer, 3 * window_width * window_height, 1, fp);
+    delete[] buffer;
+
+    fclose(fp);
+
+    do_write_tga = false;
+}
+
 void drawEntities(const Entities &entities, const Camera &camera){
+    constexpr bool do_inverse_cull = true;
+    constexpr bool do_transparency = false;
     constexpr float line_width = 0.02;
     auto vp = camera.projection * camera.view;
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-
 
     glClearColor(0.12,0.13, 0.2,1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

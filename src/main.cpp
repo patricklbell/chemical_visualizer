@@ -147,6 +147,10 @@ int main() {
     initGui();
     initControls();
 
+    camera.position = glm::vec3(17.421242, 6.072290, 14.293185);
+    camera.target = glm::vec3(5.906180, 2.160929, 5.064977);
+    updateCameraView(camera);
+
     double last_time = glfwGetTime();
     double last_filesystem_hotswap_check = last_time;
     window_resized = true;
@@ -179,10 +183,24 @@ int main() {
                 } 
             }
         }
+
+
+        // Causes camera to spin about target
+        //auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
+        //auto camera_look = camera.position - camera.target;
+        //auto rotation_x = glm::angleAxis((float)((2.0 * PI * true_dt) / 6.0f), camera.up);
+        //camera_look = rotation_x * camera_look;
+
+        //// Update the camera view
+        //camera.position = camera_look + camera.target;
+        //updateCameraView(camera);
+
         handleControls(camera, true_dt);
 
         bindBackbuffer();
         drawEntities(entities, camera);
+
+        checkWriteFrambufferToTga();
 
         drawGui(camera, entities);
 
@@ -190,6 +208,7 @@ int main() {
         glfwSwapBuffers(window);
         window_resized = false;
         glfwPollEvents();
+
 
         GLenum code = glGetError();
         if(code != GL_NO_ERROR){

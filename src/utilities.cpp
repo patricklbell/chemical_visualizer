@@ -537,7 +537,7 @@ PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_poin
 }
 
 
-void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal) {
+void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal, Entities &entities) {
     auto &pp0 = p2.position;
     auto &pp1 = p3.position;
 
@@ -583,6 +583,8 @@ void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, 
             pfn[i] = glm::normalize(glm::mix(pfn1[i], pfn2[i], t1));
         }
 
+        //createDebugCartesian(p, -0.4f*tn, 0.4f*n, 0.4f*bn, entities, 0.05);
+
         projectPointsOnPlane(num_splines, p, bn, n, pf,  &spline_tube [num_splines*i]);
         projectPointsOnPlane(num_splines, glm::vec3(0.0f), bn, n, pfn, &normals_tube[num_splines*i]);
         prev_normal = n;
@@ -606,10 +608,15 @@ void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spli
         auto tn = 3*(1-t)*(1-t)*(pp1-pp0) + 6*(1-t)*t*(pp2-pp1) + 3*t2*(pp3-pp2);
         tn = glm::normalize(tn);
 
-        auto a  = 6*(1-t)*(pp2-2.f*pp1+pp0) + 6*t*(pp3-2.f*pp2+pp1);
-        auto bn = glm::normalize(glm::cross(tn, a));
+        glm::vec3 bn;
+        if(glm::length(prev_normal) > 0.001) {
+            bn = glm::normalize(glm::cross(tn, prev_normal));
+        } else {
+            auto a  = 6*(1-t)*(pp2-2.f*pp1+pp0) + 6*t*(pp3-2.f*pp2+pp1);
+            bn = glm::normalize(glm::cross(tn, a));
+        }
 
-        auto n = glm::cross(tn, bn);
+        auto n =  glm::normalize(glm::cross(bn, tn));
 
         for(int i = 0; i < num_splines; ++i) {
             pf[i] =  glm::mix(pf1[i],  pf2[i],  t3);
