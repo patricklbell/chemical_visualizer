@@ -234,9 +234,6 @@ struct PeptidePlane {
     PdbResidue *residue_2;
 
     glm::vec3 position, normal, forward, right;
-
-    // Peptide bond could be flipped relative to previous residue
-    bool flipped = false;
 };
 
 void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c, Entities &entities, float r);

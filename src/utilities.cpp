@@ -529,7 +529,7 @@ PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_poin
         projectPointsOnPlane(num_splines, glm::vec3(0.0f), bn, n, pfn, &normals_tube[num_splines*i]);
 
         if(i == num_points_per_spline - 1) {
-            return PeptidePlane{p3.residue_1, p3.residue_2, p, bn, tn, n, false};
+            return PeptidePlane{p3.residue_1, p3.residue_2, p, bn, tn, n};
         }
         prev_normal = n;
     }

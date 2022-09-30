@@ -986,7 +986,6 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
 
         std::vector<PeptidePlane> peptide_planes;
     
-        // @todo adjust color to secondary structures
         //printf("Chain %c\n", chain.chain_id);
         int plane_i = 0;
         for(int i = 0; i < chain.residues.size() - 1; i++) {
@@ -1014,30 +1013,40 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
             plane.residue_2 = r2;
 
             plane.position = (CA1 + CA2) / 2.f;
-
             plane.forward = glm::normalize(CA2 - CA1);
+            plane.normal = glm::vec3(0);
+
+            // This a more chemically accurate way of calulating plane frames but is less smooth
+            //plane.forward = glm::normalize(CA2 - CA1);
             //plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
             //// To ensure perpendicularity calculate right
             //plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
 
-            plane.normal = glm::vec3(0);
-
             //printf("Peptide Plane %d --> %d\n", i, i+1);
         }
-        /*if(peptide_planes.size() > 0) {
+        if (peptide_planes.size() == 0) continue;
+
+        // Extends last peptide plane to pass through final alpha carbon,
+        // @note I think this messes up the last frame so the closed face has incorrect normals
+        /*{
             auto plane = peptide_planes[peptide_planes.size() - 1];
-            auto lu_CA2 = plane.residue_2->atom_name_id.find(" CA ");
-            plane.position = model.atoms[lu_CA2->second].position;
-            peptide_planes.emplace_back(plane);
+            auto lu_CA2 = plane.residue_2->atom_name_id.find("CA  ");
+            if (lu_CA2 != plane.residue_2->atom_name_id.end()) {
+                plane.position = model.atoms[lu_CA2->second].position;
+                peptide_planes.emplace_back(plane);
+            }
         }*/
+        
         // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
-        // cardinal spline calculation
+        // Use Cardinal spline calculation of forward rather than using true plane for smoother result
         constexpr float c = 0.25;
-        for(int i = 1; i < peptide_planes.size() - 1; i++) {
+        for(uint64_t i = 1; i < (uint64_t)peptide_planes.size() - 1; i++) {
             auto &p = peptide_planes;
             p[i].forward = (1-c) * (p[i+1].position - p[i-1].position);
         }
-        for(int i = 0; i < peptide_planes.size() - 1; i++) {
+
+        // Uses hermite spline derivatives to determine the normal so adjacent spline's orientations align
+        for(uint64_t i = 0; i < (uint64_t)peptide_planes.size() - 1; i++) {
             auto &p = peptide_planes;
             auto n0 = -6.f*p[i].position - 4.f*p[i].forward + 6.f*p[i+1].position - 2.f*p[i+1].forward;
             n0 = perpendicularComponent(n0, p[i].forward);
@@ -1046,37 +1055,37 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
             n1 = perpendicularComponent(n1, p[i+1].forward);
             p[i+1].normal += n1 / 2.f;
         }
-        for(int i = 0; i < peptide_planes.size(); i++) {
+
+        // Calulcate binormal and ensures adjacent normals aren't flipped
+        for(uint64_t i = 0; i < peptide_planes.size(); i++) {
             auto &p = peptide_planes;
             p[i].normal = glm::normalize(p[i].normal);
-            if(i > 0){
-                if(glm::dot(p[i].normal, p[i-1].normal) < 0) {
-                    p[i].normal *= -1;
-                }
-            }
             p[i].right = glm::normalize(glm::cross(p[i].forward, p[i].normal));
         }
-        if(peptide_planes.size() > 1) {
-            auto &p = peptide_planes;
-            p[0].normal = glm::normalize(glm::cross(p[0].forward, p[0].right));
-            p[peptide_planes.size()-1].normal = glm::normalize(glm::cross(p[peptide_planes.size()-1].forward, p[peptide_planes.size()-1].right));
+        // This ensures the first and last planes normals are normalised since they only get half a normal
+        {
+            auto &pb = peptide_planes[0];
+            auto& pe = peptide_planes[peptide_planes.size() - 1];
+
+            pb.normal = glm::normalize(glm::cross(pb.forward, pb.right));
+            pe.normal = glm::normalize(glm::cross(pe.forward, pe.right));
         }
 
         // Flip peptides that are >180 from previous
-        for(int i = 1; i < peptide_planes.size(); i++) {
-            if(glm::dot(peptide_planes[i].normal, peptide_planes[i - 1].normal) < 0) {
+        for (uint64_t i = 1; i < peptide_planes.size(); i++) {
+            if (glm::dot(peptide_planes[i].normal, peptide_planes[i-1].normal) < 0) {
                 peptide_planes[i].normal *= -1;
-                peptide_planes[i].right  *= -1;
-                peptide_planes[i].flipped = true;
+                peptide_planes[i].right *= -1;
             }
         }
 
-        //for(int i = 1; i < peptide_planes.size(); i++) {
-            //createDebugCartesian(plane.position, plane.normal)
-            //createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
-            //auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
-            //createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);
-        //}
+        // Debug peptide planes
+        /*for(int i = 1; i < peptide_planes.size(); i++) {
+            createDebugCartesian(plane.position, plane.normal)
+            createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
+            auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
+            createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);
+        }*/
 
         createPolypeptideEntity(entities, peptide_planes);
     }
