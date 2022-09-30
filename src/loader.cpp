@@ -19,7 +19,7 @@
 // Mostly for making presentation
 constexpr bool draw_water = false;
 constexpr bool draw_residue_atoms = false;
-constexpr float residue_atom_alpha = 0.1;
+constexpr float residue_atom_alpha = 1.0;
 constexpr bool draw_chains = true;
 constexpr float chain_alpha = 1.0;
 
@@ -651,7 +651,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
     constexpr float r = 0.25;
     // By default colors based on secondary structures
-    constexpr bool do_chain_colors = false;
+    constexpr bool do_chain_colors = true;
     constexpr bool do_residue_colors = false;
 
     // @todo these should probably 
@@ -903,8 +903,6 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     avg_bond_length /= model.connections.size();
     float calc_cylinder_r = glm::max(avg_bond_length*relative_cylinder_size, 0.1f);
     float calc_sphere_r   = glm::max(avg_bond_length*relative_sphere_size, 0.2f);
-
-    printf("Calc sphere %f, Calc cylinder %f\n", calc_sphere_r, calc_cylinder_r);
 
     // Draw hetero atoms and the bonds between them (including non hetero edge atoms)
     // @speed

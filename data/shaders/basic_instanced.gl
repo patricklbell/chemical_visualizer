@@ -24,7 +24,7 @@ void main(){
 #if COMPILING_FS
 
 #define PI                 3.14159265359
-#define AMBIENT_INTENSITY  0.2
+#define AMBIENT_INTENSITY  0.5
 #define DIFFUSE_INTENSITY  0.1
 #define SPECULAR_EXP       5.0
 #define SPECULAR_INT       0.1
