@@ -18,8 +18,8 @@
 
 // Mostly for making presentation
 constexpr bool draw_water = false;
-constexpr bool draw_residue_atoms = true;
-constexpr float residue_atom_alpha = 0.15;
+constexpr bool draw_residue_atoms = false;
+constexpr float residue_atom_alpha = 0.1;
 constexpr bool draw_chains = true;
 constexpr float chain_alpha = 1.0;
 
@@ -76,6 +76,12 @@ glm::vec4 getColorFromSymbol(std::string symbol) {
     auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
     if(color_1_lu == symbol_to_color_lut.end()) return glm::vec4(1.0);
     else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
+}
+
+glm::vec4 getColorFromResidue(std::string residue) {
+    auto color_1_lu = residue_to_color_lut.find(std::string(residue));
+    if(color_1_lu == residue_to_color_lut.end()) return glm::vec4(unknown_residue_color, 1.0);
+    else                                        return glm::vec4(color_1_lu->second, 1.0);
 }
 
 void createAtomEntity(const glm::vec3 &pos, const glm::vec4 &col, Entities &entities, float radius=sphere_r) {
@@ -446,16 +452,13 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 substrFloat(line, 30, 37, &atom.position.x);
                 substrFloat(line, 38, 45, &atom.position.y);
                 substrFloat(line, 46, 53, &atom.position.z);
-
-                // @note this transforms symbol to match symbol lut, better to modify lut to match pdb
                 sscanf(&line[76], "%2s", atom.symbol);
-                atom.symbol[1] = tolower(atom.symbol[1]);
                 atom.symbol[2] = '\0';
 
-                //if(atom.is_heterogen) printf("HETATM:");
-                //else                  printf("ATOM  :");
-                //printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d\n", 
-                //        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
+                if(atom.is_heterogen) printf("HETATM:");
+                else                  printf("ATOM  :");
+                printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d\n", 
+                        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
             } else if(!strcmp(record_name, "CONECT")) { 
                 int atom_id;
                 int connect_ids[4];
@@ -632,7 +635,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                     auto hash = hashBondPair(atom_1_id, atom_2_id);
                     auto lu = m.connections.find(hash);
                     if(lu == m.connections.end()) {
-                        printf("DICT CONECT: %d --> %d of type %d\n", atom_1_id, atom_2_id, ap.second.type);
+                        //printf("DICT CONECT: %d --> %d of type %d\n", atom_1_id, atom_2_id, ap.second.type);
                         auto &b = m.connections.try_emplace(hash).first->second;
                         b.atom_1_id = atom_1_id;
                         b.atom_2_id = atom_2_id;
@@ -647,6 +650,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 // Mesh which blends between different secondary structures in one polypeptide chain 
 void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
     constexpr float r = 0.25;
+    // By default colors based on secondary structures
+    constexpr bool do_chain_colors = false;
+    constexpr bool do_residue_colors = false;
+
     // @todo these should probably 
     constexpr int num_splines = 16, num_points_per_spline = 16;
     glm::vec2 circle_profile[num_splines];
@@ -690,9 +697,14 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     const int num_planes = planes.size();
 
     glm::vec3 previous_normal = planes[0].normal;
-    auto helix_color = glm::vec4(glm::vec3(255, 105, 180) / 255.f, chain_alpha);
-    auto strand_color = glm::vec4(glm::vec3(255, 211, 0) / 255.f, chain_alpha);
-    auto coil_color = glm::vec4(glm::vec3(220, 220, 220) / 255.f, chain_alpha);
+
+    auto helix_color  = glm::vec4(glm::vec3(255, 0,   128) / 255.f, chain_alpha);
+    auto strand_color = glm::vec4(glm::vec3(255, 200, 0  ) / 255.f, chain_alpha);
+    auto coil_color   = glm::vec4(glm::vec3(96,  128, 255) / 255.f, chain_alpha);
+    glm::vec4 chain_color;
+    if(do_chain_colors) {
+        chain_color = glm::vec4(randomSaturatedColor(), 1.0);
+    }
     for(int i = 0; i < num_planes - 1; i++) {
         auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
 
@@ -770,6 +782,13 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                     pfn2 = circle_profile_normals;
                     break;
                 }
+        }
+
+        if(do_chain_colors) {
+            m_e.albedo = chain_color;
+        }
+        if(do_residue_colors) {
+            m_e.albedo = getColorFromResidue(planes[i].residue_1->res_name);
         }
 
         int p1_i = i-1;

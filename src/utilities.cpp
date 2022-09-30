@@ -324,6 +324,40 @@ glm::vec3 randomColor() {
     return glm::normalize(glm::vec3(rand(), rand(), rand()));
 }
 
+// https://en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB
+glm::vec3 hsvToRgb(const glm::vec3 &hsv) {
+    auto &h = hsv.r;
+    auto &s = hsv.g;
+    auto &v = hsv.b;
+
+    float c = s*v;
+    int h_i = (int)glm::floor(h*6) % 6;
+    float x = c * (1 - glm::abs(h_i % 2 - 1));
+
+    float r,g,b;
+    switch (h_i) {
+        case 0: case 5: r = c;   break;
+        case 1: case 4: r = x;   break;
+        case 2: case 3: r = 0.0; break;
+    }
+    switch (h_i) {
+        case 0: case 3: g = x;   break;
+        case 1: case 2: g = c;   break;
+        case 4: case 5: g = 0.0; break;
+    }
+    switch (h_i) {
+        case 0: case 1: b = 0.0; break;
+        case 2: case 5: b = x;   break;
+        case 3: case 4: b = c;   break;
+    }
+
+    return glm::vec3(r,g,b);
+}
+
+glm::vec3 randomSaturatedColor() {
+    return hsvToRgb(glm::vec3((double)rand() / (double)RAND_MAX, 0.3, 0.99));
+}
+
 // http://www.paulbourke.net/miscellaneous/interpolation
 // Cubic interpolation applied independently to each dimension between x1 and x2
 void createCubicSpline(const glm::vec3 &x0, const glm::vec3 &x1, const glm::vec3 &x2, const glm::vec3 &x3, const int n, glm::vec3 *curve) {
@@ -706,8 +740,8 @@ void createRectangleProfileNormals(const int n, glm::vec2 *normals, float w=1.0,
 }
 
 // Transforms 2D points onto 3D plane
-void projectPointsOnPlane(int num, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points) {
-    for(int i = 0; i < num; i++){
+void projectPointsOnPlane(const int n, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points) {
+    for(int i = 0; i < n; i++){
         auto &in_p = in_points[i];
         out_points[i] = u*in_p.x + v*in_p.y + p;
     }

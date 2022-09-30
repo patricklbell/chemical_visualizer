@@ -147,10 +147,6 @@ int main() {
     initGui();
     initControls();
 
-    camera.position = glm::vec3(17.421242, 6.072290, 14.293185);
-    camera.target = glm::vec3(5.906180, 2.160929, 5.064977);
-    updateCameraView(camera);
-
     double last_time = glfwGetTime();
     double last_filesystem_hotswap_check = last_time;
     window_resized = true;
