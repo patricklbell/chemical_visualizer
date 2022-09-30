@@ -18,8 +18,8 @@
 
 // Mostly for making presentation
 constexpr bool draw_water = false;
-constexpr bool draw_residue_atoms = false;
-constexpr float residue_atom_alpha = 0.05;
+constexpr bool draw_residue_atoms = true;
+constexpr float residue_atom_alpha = 0.15;
 constexpr bool draw_chains = true;
 constexpr float chain_alpha = 1.0;
 

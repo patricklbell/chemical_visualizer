@@ -74,8 +74,8 @@ void checkWriteFrambufferToTga() {
 }
 
 void drawEntities(const Entities &entities, const Camera &camera){
-    constexpr bool do_inverse_cull = true;
-    constexpr bool do_transparency = false;
+    constexpr bool do_inverse_cull = false;
+    constexpr bool do_transparency = true;
     constexpr float line_width = 0.02;
     auto vp = camera.projection * camera.view;
 
