@@ -1,20 +1,20 @@
 # Chemical Visualizer
-View PDB (Protein Data Bank) and mol files. This app is also built to webassembly on the [emscripten branch](https://github.com/patricklbell/chemical_visualizer/tree/emscripten).
+View PDB (Protein Data Bank) and MOL files. This app is also built to webassembly on the [emscripten branch](https://github.com/patricklbell/chemical_visualizer/tree/emscripten).
 
-## 4HHB ([PDB](https://www.rcsb.org/structure/4HHB))
-![4HHB PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_4hhb.png?raw=true)
+## Haemoglobin ([PDB](https://www.rcsb.org/structure/4n7n))
+![Haemoglobin Ribbon Diagram Chain Coloring](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/haemoglobin_chains.png?raw=true)
 
 
-## 8DH6 ([PDB](https://www.rcsb.org/structure/8DH6))
-![8DH6 PDB file](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_pdb_8dh6.png?raw=true)
+## Immunoglobulin Antibody (IgG) ([PDB](https://www.rcsb.org/structure/1igt))
+![Immunoglobulin Ribbon Diagram Secondary Structure Coloring](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/igg_secondary.png?raw=true)
 
-## Caffeine (Molfile)
-![Caffeine Molfile](https://github.com/patricklbell/chemical_visualizer/blob/main/screenshot_mol_caffeine.png?raw=true)
+## Caffeine ([MOL](https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:27732))
+![Caffeine Molecule Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/Caffeine.png?raw=true)
 
 ## Building
 ### Windows
 #### Requirements
-You need CMake and the Visual Studio build toochain for C++. Additionally OpenGL
+You need CMake and the Visual Studio build tool-chain for C++. Additionally, OpenGL
 must be above version 3.3 (Should already work, if not, update your graphics 
 drivers). 
 #### Building
@@ -61,7 +61,7 @@ cp -R ../data .
 ```
 
 ## Todo:
-- Molfiles which don't specify each atom's 3D coordinates but do specify bond 
+- MOL files which don't specify each atom's 3D coordinates but do specify bond 
 angles are not displayed correctly
-- Display wireframe and spacefilling visualizations of pdb files
-- Create different color modes for pdb files
+- Display wireframe and space-filling visualizations of PDB files
+- Create different color modes for PDB files
