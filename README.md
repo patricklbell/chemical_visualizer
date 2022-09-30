@@ -6,10 +6,10 @@ View PDB (Protein Data Bank) and MOL files. This app is also built to webassembl
 
 
 ## Immunoglobulin Antibody (IgG) ([PDB](https://www.rcsb.org/structure/1igt))
-![Immunoglobulin Ribbon Diagram Secondary Structure Coloring](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/igg_secondary.png?raw=true)
+![Immunoglobulin Atom Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/igg_atoms.png?raw=true)
 
 ## Caffeine ([MOL](https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:27732))
-![Caffeine Molecule Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/Caffeine.png?raw=true)
+![Caffeine Molecule Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/caffeine.png?raw=true)
 
 ## Building
 ### Windows
