@@ -140,7 +140,7 @@ int main() {
     Entities entities;
     {
         PdbFile pdb_file;
-        loadPdbFile(pdb_file, "data/examples/pdb/1igt.pdb", &pdb_dictionary);
+        loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb", &pdb_dictionary);
         createEntitiesFromPdbFile(entities, pdb_file, camera);
     }
 

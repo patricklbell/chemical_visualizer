@@ -17,9 +17,9 @@
 #include "utilities.hpp"
 
 // Mostly for making presentation
-constexpr bool draw_water = false;
+constexpr bool draw_water = true;
 constexpr bool draw_residue_atoms = false;
-constexpr float residue_atom_alpha = 1.0;
+constexpr float residue_atom_alpha = 0.1;
 constexpr bool draw_chains = true;
 constexpr float chain_alpha = 1.0;
 
@@ -654,8 +654,8 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     constexpr bool do_chain_colors = true;
     constexpr bool do_residue_colors = false;
 
-    // @todo these should probably 
-    constexpr int num_splines = 16, num_points_per_spline = 16;
+    // @todo these should probably be dynamic, @note num_splines has to be multiples of 8
+    constexpr int num_splines = 16, num_points_per_spline = 12;
     glm::vec2 circle_profile[num_splines];
     glm::vec2 circle_profile_normals[num_splines];
     createCircularProfile(num_splines, circle_profile, r);
@@ -676,16 +676,31 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
     createRectangleProfile(num_splines, ribbon_profile, 5.f*r, 0.5f*r);
     createRectangleProfileNormals(num_splines, ribbon_profile_normals, 5.f*r, 0.5f*r);
 
+    // 4 point versions of rectangle profiles, used when not transitioning
+    glm::vec2 rectangle_profile_simple[4];
+    glm::vec2 rectangle_profile_simple_normals_doubled[8];
+    createRectangleProfile(4, rectangle_profile_simple, 6.f * r, 1.5f * r);
+    createRectangleProfileNormalsCorrect(rectangle_profile_simple_normals_doubled, 6.f * r, 1.5f * r);
+
+    glm::vec2 ribbon_profile_simple[4];
+    glm::vec2 ribbon_profile_simple_normals_doubled[8];
+    createRectangleProfile(4, ribbon_profile_simple, 5.f * r, 0.5f * r);
+    createRectangleProfileNormalsCorrect(ribbon_profile_simple_normals_doubled, 5.f * r, 0.5f * r);
+
     // [0,1] point to exavluate to get arrow head beginning 
     constexpr float arrow_length = 0.7;
-    glm::vec2 arrow_profile[num_splines];
-    glm::vec2 arrow_profile_normals[num_splines];
-    createRectangleProfile(num_splines, arrow_profile, 10.f*r, 1.5f*r);
-    createRectangleProfileNormals(num_splines, arrow_profile_normals, 10.f*r, 1.5f*r);
-    glm::vec2 arrow_tip_profile[num_splines];
-    glm::vec2 arrow_tip_profile_normals[num_splines];
-    createRectangleProfile(num_splines, arrow_tip_profile, 0.f*r, 1.f*r);
-    createRectangleProfileNormals(num_splines, arrow_tip_profile_normals, 0.f*r, 1.f*r);
+    glm::vec2 arrow_profile [4] ;
+    glm::vec2 arrow_profile_normals_doubled[8];
+    createRectangleProfile(4, arrow_profile, 10.f * r, 1.5f * r);
+    createRectangleProfileNormalsCorrect(arrow_profile_normals_doubled, 10.f * r, 1.5f * r);
+    glm::vec2 arrow_tip_profile[4];
+    glm::vec2 arrow_tip_profile_normals_doubled[8];
+    createRectangleProfile(4, arrow_tip_profile, 0.f * r, 1.f * r);
+    createRectangleProfileNormalsCorrect(arrow_tip_profile_normals_doubled, 0.f * r, 1.f * r);
+    glm::vec2 arrow_transition_profile[num_splines];
+    glm::vec2 arrow_transition_profile_normals[num_splines];
+    createRectangleProfile(num_splines, arrow_transition_profile, 10.f * r, 1.5f * r);
+    createRectangleProfileNormals(num_splines, arrow_transition_profile_normals, 10.f * r, 1.5f * r);
 
     // @todo Handle small number of planes
     if(planes.size() < 3) return;
@@ -726,6 +741,9 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
         //createDebugCartesian(planes[i].position, 0.5f*planes[i].normal, 0.5f*planes[i].right, 0.5f*planes[i].forward, entities, 0.02);
 
         glm::vec2 *pf1, *pf2, *pfn1, *pfn2;
+        // Flag set when rectangle profiles which aren't transitioning
+        const bool do_simple_profile = (planes[i].residue_1->type == PdbResidueType::HELIX && planes[i + 1].residue_1->type == PdbResidueType::HELIX) ||
+                                       (planes[i].residue_1->type == PdbResidueType::STRAND && planes[i + 1].residue_1->type == PdbResidueType::STRAND); 
         switch (planes[i].residue_1->type) {
             case PdbResidueType::COIL:
                 {
@@ -799,36 +817,36 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
             p4_i = i+1;
         }
 
-
         if(planes[i].residue_1->type == PdbResidueType::STRAND && planes[i+1].residue_1->type == PdbResidueType::COIL) {
-            auto arrow_base_plane = createPartialHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, 
-                    rectangle_profile, rectangle_profile_normals, rectangle_profile, rectangle_profile_normals, 
+            auto arrow_base_plane = createPartialHermiteSplineNormalsBetweenProfiles(num_points_per_spline, 4, 
+                    rectangle_profile_simple, rectangle_profile_simple_normals_doubled, rectangle_profile_simple, rectangle_profile_simple_normals_doubled,
                     planes[p1_i], planes[i], planes[i+1], planes[p4_i], 
-                    &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal, arrow_length);
-            createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+                    &spline_tube[0][0], &normals_tube[0][0], 
+                    previous_normal, arrow_length, true);
+            createClosedSurfaceFromSplinesDoubledNormals(4, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
 
-            glm::vec3 projected_profile[num_splines];
-            projectPointsOnPlane(num_splines, arrow_base_plane.position, arrow_base_plane.normal, arrow_base_plane.right, 
+            glm::vec3 projected_profile[4];
+            projectPointsOnPlane(4, arrow_base_plane.position, arrow_base_plane.normal, arrow_base_plane.right, 
                     arrow_profile, projected_profile);
-            createClosedFacedFromProfile(arrow_base_plane.position, num_splines, projected_profile, mesh, true);
+            createClosedFacedFromProfile(arrow_base_plane.position, 4, projected_profile, mesh, true);
 
             if(i == num_planes - 2) {
                 // hack to make longer arrows at end points
                 planes[i+1].position += arrow_base_plane.forward;
-                createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
-                        arrow_profile, arrow_profile_normals, arrow_tip_profile, arrow_tip_profile_normals, 
-                        arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
-                        &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal);
+                createHermiteSplineNormalsBetweenProfiles(2, 4, 
+                        arrow_profile, arrow_profile_normals_doubled, arrow_tip_profile, arrow_tip_profile_normals_doubled, 
+                        planes[i], arrow_base_plane, planes[i+1], planes[p4_i], 
+                        &spline_tube[0][0], &normals_tube[0][0], 
+                        previous_normal, true);
+                createClosedSurfaceFromSplinesDoubledNormals(4, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
             } else {
                 createHermiteSplineNormalsBetweenProfiles(2, num_splines, 
-                        arrow_profile, arrow_profile_normals, circle_profile, circle_profile_normals, 
-                        arrow_base_plane, arrow_base_plane, planes[i+1], planes[i+1], 
-                        &spline_tube[0][0], 
-                        &normals_tube[0][0], previous_normal);
+                        arrow_transition_profile, arrow_transition_profile_normals, circle_profile, circle_profile_normals, 
+                        planes[i], arrow_base_plane, planes[i+1], planes[p4_i],
+                        &spline_tube[0][0], &normals_tube[0][0], 
+                    previous_normal);
+                createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
             }
-            createClosedSurfaceFromSplinesNormals(num_splines, 2, &spline_tube[0][0], &normals_tube[0][0], mesh);
 
             //projectPointsOnPlane(num_splines, planes[i+1].position, planes[i+1].right, planes[i+1].normal, 
             //        circle_profile, projected_profile);
@@ -851,10 +869,30 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                 createClosedFacedFromProfile(planes[i].position, num_splines, projected_profile, mesh, true);
             }
 
-            createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
-                    planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
-                    &normals_tube[0][0], previous_normal);
-            createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+            // Rectange normals are wrong if they are smooth shaded so we need a special case
+            if (do_simple_profile) {
+                if (planes[i].residue_1->type == PdbResidueType::HELIX) {
+                    createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, 4,
+                        ribbon_profile_simple, ribbon_profile_simple_normals_doubled, ribbon_profile_simple, ribbon_profile_simple_normals_doubled,
+                        planes[p1_i], planes[i], planes[i + 1], planes[p4_i], 
+                        &spline_tube[0][0], &normals_tube[0][0], 
+                        previous_normal, true);
+                }
+                else if (planes[i].residue_1->type == PdbResidueType::STRAND) {
+                    createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, 4,
+                        rectangle_profile_simple, rectangle_profile_simple_normals_doubled, rectangle_profile_simple, rectangle_profile_simple_normals_doubled,
+                        planes[p1_i], planes[i], planes[i + 1], planes[p4_i], 
+                        &spline_tube[0][0], &normals_tube[0][0], 
+                        previous_normal, true);
+                }
+                createClosedSurfaceFromSplinesDoubledNormals(4, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+            }
+            else {
+                createHermiteSplineNormalsBetweenProfiles(num_points_per_spline, num_splines, pf1, pfn1, pf2, pfn2, 
+                        planes[p1_i], planes[i], planes[i+1], planes[p4_i], &spline_tube[0][0], 
+                        &normals_tube[0][0], previous_normal);
+                createClosedSurfaceFromSplinesNormals(num_splines, num_points_per_spline, &spline_tube[0][0], &normals_tube[0][0], mesh);
+            }
 
             if(i == num_planes - 2) {
                 auto tn = glm::normalize(planes[i+1].forward);
@@ -1098,7 +1136,6 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
 
         // Debug peptide planes
         /*for(int i = 1; i < peptide_planes.size(); i++) {
-            createDebugCartesian(plane.position, plane.normal)
             createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
             auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
             createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);

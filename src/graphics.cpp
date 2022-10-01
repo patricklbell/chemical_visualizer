@@ -74,19 +74,20 @@ void checkWriteFrambufferToTga() {
 }
 
 void drawEntities(const Entities &entities, const Camera &camera){
-    constexpr bool do_inverse_cull = true;
-    constexpr bool do_transparency = false;
-    constexpr float line_width = 0.02;
+    constexpr bool do_inverse_hull = false;
+    constexpr bool do_transparency = true;
+    constexpr float line_width = 0.03;
     auto vp = camera.projection * camera.view;
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    glClearColor(0.12,0.13, 0.2,1);
+    //glClearColor(0.12,0.13, 0.2,1);
+    glClearColor(0.95, 0.95, 0.95, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if(do_inverse_cull) {
+    if(do_inverse_hull) {
         glCullFace (GL_FRONT);
         glDepthFunc (GL_LEQUAL);
         glUseProgram(shader::null_program);
@@ -207,7 +208,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
             glVertexAttribDivisor(9,  1);
             glVertexAttribDivisor(10, 1);
 
-            if(do_inverse_cull) {
+            if(do_inverse_hull) {
                 glCullFace (GL_FRONT);
                 glDepthFunc (GL_LEQUAL);
                 glUseProgram(shader::null_instanced_program);

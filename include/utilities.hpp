@@ -59,9 +59,9 @@ void createCubicBezierSplineNormalsBetweenProfiles(const int num_points_per_spli
 
 // Hermite Splines is the only complete implementation
 void createHermiteSplineBetweenProfiles(const int num_points_per_spline, const int num_splines,  glm::vec2 *pf1, glm::vec2 *pf2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 &prev_normal);
-void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal);
+void createHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal, bool double_normals=false);
 // Returns the frames at the end of the partial spline, this could technically replace the non partial form when t=1.0
-PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal, float t);
+PeptidePlane createPartialHermiteSplineNormalsBetweenProfiles(const int num_points_per_spline, const int num_splines, glm::vec2 *pf1, glm::vec2 *pfn1, glm::vec2 *pf2, glm::vec2 *pfn2, const PeptidePlane &p1, const PeptidePlane &p2, const PeptidePlane &p3, const PeptidePlane &p4, glm::vec3 *spline_tube, glm::vec3 *normals_tube, glm::vec3 &prev_normal, float t, bool double_normals=true);
 
 // 
 // Create 'profiles' meaning an ordered series of points along shape
@@ -72,6 +72,7 @@ void createEllipseProfile(const int n, glm::vec2 *points, float r1, float r2);
 void createEllipseProfileNormals(const int n, glm::vec2 *normals, float r1, float r2);
 void createRectangleProfile(const int n, glm::vec2 *points, float w, float h);
 void createRectangleProfileNormals(const int n, glm::vec2 *normals, float w, float h);
+void createRectangleProfileNormalsCorrect(glm::vec2* normals, float w, float h);
 
 void projectPointsOnPlane(const int n, glm::vec3 p, glm::vec3 u, glm::vec3 v, glm::vec2 *in_points, glm::vec3 *out_points);
 
@@ -80,5 +81,6 @@ void projectPointsOnPlane(const int n, glm::vec3 p, glm::vec3 u, glm::vec3 v, gl
 void createClosedFacedFromProfile(glm::vec3 center_point, int num_points, glm::vec3 *profile, Mesh &mesh, const bool flipped);
 void createClosedSurfaceFromSplines(int num_splines, int num_points_per_spline, glm::vec3 *surface, Mesh &mesh);
 void createClosedSurfaceFromSplinesNormals(int num_splines, int num_points_per_spline, glm::vec3 *surface, glm::vec3 *normals, Mesh &mesh);
+void createClosedSurfaceFromSplinesDoubledNormals(int num_splines, int num_points_per_spline, glm::vec3* surface, glm::vec3* normals, Mesh& mesh);
 
 #endif /* ifndef UTILITIES_HPP */
