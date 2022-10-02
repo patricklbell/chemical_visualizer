@@ -187,9 +187,10 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
             max_distance = dist;
         }
     }
-    camera.target = center;
-    camera.position = camera.target + glm::normalize(camera.position - camera.target) * max_distance * 2.2f;
-    updateCameraView(camera);
+
+    camera.selected = true;
+    camera.selection_position = center;
+    camera.selection_radius = max_distance;
 
     // @alternate method for reserving and also incase double bonds are written as two singles
     //int num_bond_entities;
@@ -392,11 +393,15 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 if(first_model_flag) {
                     first_model_flag = false;
                 } else {
+                    if (data.models.find(serial) != data.models.end()) {
+                        fprintf(stderr, "Duplicate model serial number, %d\n", serial);
+                        continue;
+                    }
                     model = &data.models.try_emplace(serial).first->second;
                 }
                 
-                printf("MODEL %d\n", model->serial);
                 model->serial = serial;
+                printf("MODEL %d\n", model->serial);
             } else if(!strcmp(record_name, "HETATM") || !strcmp(record_name, "ATOM  ")) {
                 int serial;
                 substrSscanf(line, 6, 10, " %d", &serial);
@@ -1111,9 +1116,10 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
             max_distance = dist;
         }
     }
-    camera.target = center;
-    camera.position = camera.target + glm::normalize(camera.position - camera.target)*max_distance*2.2f;
-    updateCameraView(camera);
+
+    camera.selected = true;
+    camera.selection_position = center;
+    camera.selection_radius = max_distance;
 
     // Create entities for ribbon meshes which have been precalculated
     if (settings.draw_residue_ribbons) {

@@ -18,12 +18,18 @@ struct Camera {
     glm::vec3 target;
     glm::mat4 view;
     glm::mat4 projection;
+
+    // For now this selection is just the file were viewing
+    bool selected = false;
+    glm::vec3 selection_position;
+    float selection_radius; // Bounding sphere
 };
 
 void createDefaultCamera(Camera &camera);
 void updateCameraView(Camera &camera);
 void updateCameraProjection(Camera &camera);
 void updateCamera(Camera &camera);
+void positionCameraSelectionInView(Camera& camera, float fov_ratio);
 
 namespace controls {
     extern glm::dvec2 scroll_offset;

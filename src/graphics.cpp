@@ -16,6 +16,7 @@
 #include "shader.hpp"
 #include "utilities.hpp"
 #include "shader.hpp"
+#include "ui.hpp"
 
 int    window_width;
 int    window_height;
@@ -100,8 +101,10 @@ void drawEntities(const Entities &entities, const Camera &camera){
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    //glClearColor(0.12,0.13, 0.2,1);
-    glClearColor(0.95, 0.95, 0.95, 1.0);
+    if(ui::dark_mode)
+        glClearColor(0.05, 0.05, 0.05, 1.0);
+    else
+        glClearColor(0.95, 0.95, 0.95, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if(do_inverse_hull) {

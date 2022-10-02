@@ -39,6 +39,15 @@ void updateCameraView(Camera &camera){
         updateCameraProjection(camera);
 }
 
+void positionCameraSelectionInView(Camera& camera, float fov_ratio) {
+    camera.target = camera.selection_position;
+    float min_screen_ratio = glm::min((float)window_height / (float)window_width, (float)window_width / (float)window_height);
+    float d = camera.selection_radius / glm::max(glm::tan(min_screen_ratio * camera.fov * fov_ratio), 0.1f);
+    d = glm::min(camera.far_plane / 2.0f, d);
+    camera.position = camera.target + glm::normalize(-graphics::sun_direction) * d;
+    updateCameraView(camera);
+}
+
 void updateCameraProjection(Camera &camera){
     if (camera.is_ortho) {
         auto distance = glm::length(camera.target - camera.position);

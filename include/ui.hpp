@@ -24,6 +24,7 @@ namespace ui {
 	extern PdbDrawSettings pdbfile_settings;
 
 	extern std::string loaded_file_path;
+	extern bool dark_mode;
 }
 
 #endif

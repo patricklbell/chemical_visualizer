@@ -147,6 +147,8 @@ int main() {
             createPdbModelMeshes(ui::pdbfile.models[0]);
             createEntitiesFromPdbModel(entities, ui::pdbfile.models[0], ui::pdbfile_settings, camera);
 
+            positionCameraSelectionInView(camera, 0.8);
+
             ui::loaded_file_path = "data/examples/pdb/1bzv.pdb";
             ui::mode = UiMode::PDB;
         }

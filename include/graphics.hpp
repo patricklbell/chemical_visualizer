@@ -29,5 +29,7 @@ void checkWriteFrambufferToTga();
 namespace graphics{
     extern Mesh sphere;
     extern Mesh cylinder;
+
+    extern glm::vec3 sun_direction;
 }   
 #endif

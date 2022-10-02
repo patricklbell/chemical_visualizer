@@ -51,6 +51,8 @@ namespace ui {
     PdbDrawSettings pdbfile_settings;
 
     std::string loaded_file_path = "";
+
+    bool dark_mode = false;
 }
 using namespace ui;
 
@@ -133,6 +135,8 @@ void initGui(){
 }
 
 void drawGui(Camera &camera, Entities &entities){
+    static int selected_pdb_model_serial = 0;
+
     // Start the Dear ImGui frame;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -177,6 +181,7 @@ void drawGui(Camera &camera, Entities &entities){
             if(ImGui::Checkbox("Orthographic", &camera.is_ortho)) {
                 updateCameraProjection(camera);
             }
+            ImGui::Checkbox("Dark Background", &dark_mode);
         }
 
         switch (mode)
@@ -186,11 +191,41 @@ void drawGui(Camera &camera, Entities &entities){
         case UiMode::PDB:
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetTextLineHeightWithSpacing() * 0.5);
             if (ImGui::CollapsingHeader("Pdb Options", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Checkbox("Heterogen Molecules", &pdbfile_settings.draw_hetero_atoms);
-                ImGui::Checkbox("Water Molecules", &pdbfile_settings.draw_water_atoms);
-                ImGui::Checkbox("Residue Molecules", &pdbfile_settings.draw_residue_atoms);
-                ImGui::Checkbox("Residue Ribbon", &pdbfile_settings.draw_residue_ribbons);
-                if (ImGui::Button("Apply Options", button_size)) {
+                // @todo load model names from pdb
+                if (pdbfile.models.size() > 1) {
+                    std::string model_name = std::to_string(pdbfile.models[selected_pdb_model_serial].serial);
+
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetTextLineHeightWithSpacing() * 0.5);
+                    ImGui::Text("List of Models");
+                    ImGui::SetNextItemWidth(button_size.x);
+                    if (ImGui::BeginCombo("##model-combo", model_name.c_str())) {
+                        for(auto &p : pdbfile.models) {
+                            auto& m = p.second;
+
+                            bool is_selected = (m.serial == selected_pdb_model_serial);
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+
+                            if (ImGui::Selectable(std::to_string(m.serial).c_str(), is_selected)) {
+                                selected_pdb_model_serial = m.serial;
+                                if (!m.renderable) {
+                                    createPdbModelMeshes(m);
+                                }
+
+                                entities.clear();
+                                createEntitiesFromPdbModel(entities, m, pdbfile_settings, camera);
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
+                bool change_occured = false;
+                change_occured |= ImGui::Checkbox("Heterogen Molecules", &pdbfile_settings.draw_hetero_atoms);
+                change_occured |= ImGui::Checkbox("Water Molecules", &pdbfile_settings.draw_water_atoms);
+                change_occured |= ImGui::Checkbox("Residue Molecules", &pdbfile_settings.draw_residue_atoms);
+                change_occured |= ImGui::Checkbox("Residue Ribbon", &pdbfile_settings.draw_residue_ribbons);
+
+                if (change_occured) {
                     entities.clear();
                     createEntitiesFromPdbModel(entities, pdbfile.models[0], pdbfile_settings, camera);
                 }
@@ -226,12 +261,16 @@ void drawGui(Camera &camera, Entities &entities){
             loadPdbFile(pdbfile, p, &pdb_dictionary);
 
             if (pdbfile.models.size() > 0) {
-                entities.clear();
                 createPdbModelMeshes(pdbfile.models[0]);
+
+                entities.clear();
                 createEntitiesFromPdbModel(entities, pdbfile.models[0], pdbfile_settings, camera);
+
+                positionCameraSelectionInView(camera, 0.8);
 
                 loaded_file_path = p;
                 mode = UiMode::PDB;
+                selected_pdb_model_serial = 0;
             }
         } else {
             fprintf(stderr, "Unhandled imgui file dialog type %s.\n", p.c_str());
