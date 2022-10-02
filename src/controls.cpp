@@ -15,6 +15,7 @@
 
 #include "controls.hpp"
 #include "graphics.hpp"
+#include "utilities.hpp"
 
 namespace controls {
     glm::dvec2 scroll_offset;
@@ -37,7 +38,7 @@ void updateCameraView(Camera &camera){
 }
 
 void updateCameraProjection(Camera &camera){
-    camera.projection = glm::perspective(glm::radians(45.0f), (float)window_width/(float)window_height, camera.near_plane, camera.far_plane);
+    camera.projection = glm::perspective(camera.fov, (float)window_width/(float)window_height, camera.near_plane, camera.far_plane);
 }
 
 void updateCamera(Camera &camera){
@@ -64,18 +65,17 @@ void handleControls(Camera &camera, float dt) {
 
     if(active){
         // Unlike other inputs, calculate delta but update mouse position immediately
-        glm::dvec2 delta_mouse_position = mouse_position;
+        glm::dvec2 old_mouse_position = mouse_position;
         glfwGetCursorPos(window, &mouse_position.x, &mouse_position.y);
-        delta_mouse_position = mouse_position - delta_mouse_position;
+        delta_mouse_position = (mouse_position - old_mouse_position);
+        auto delta_mouse_position_n = delta_mouse_position / glm::dvec2((float)window_width, (float)window_height);
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
             auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
 
             // Calculate the amount of rotation given the mouse movement.
-            float delta_angle_x = (2 * PI / (float)window_width); // a movement from left to right = 2PI
-            float delta_angle_y = (PI / (float)window_height);  // a movement from top to bottom = PI
-            float x_angle = -delta_mouse_position.x * delta_angle_x;
-            float y_angle = -delta_mouse_position.y * delta_angle_y;
+            float x_angle = -delta_mouse_position_n.x * 2 * PI; // a movement from left to right = 2PI
+            float y_angle = -delta_mouse_position_n.y * PI; // a movement from top to bottom = PI
 
             auto camera_look = camera.position - camera.target;
 
@@ -100,13 +100,22 @@ void handleControls(Camera &camera, float dt) {
             camera.position = camera_look + camera.target;
             updateCameraView(camera);
         } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-            auto camera_right = glm::vec3(glm::transpose(camera.view)[0]);
+            auto inverse_vp = glm::inverse(camera.projection * camera.view);
 
-            auto delta = (float)delta_mouse_position.x*camera_right - (float)delta_mouse_position.y*camera.up;
-            auto d = glm::length(camera.position - camera.target);
-            camera.position -= 0.003f*d*delta;
-            camera.target   -= 0.003f*d*delta;
+            // Find Normalized Device coordinates mouse positions
+            auto new_mouse_position_ndc = (mouse_position     / glm::dvec2((float)window_width, (float)window_height) - glm::dvec2(0.5)) * 2.0;
+            auto old_mouse_position_ndc = (old_mouse_position / glm::dvec2((float)window_width, (float)window_height) - glm::dvec2(0.5)) * 2.0;
 
+            // Project these mouse coordinates onto near plane to determine world coordinates
+            auto new_mouse_position_world = glm::vec3(inverse_vp * glm::vec4(new_mouse_position_ndc.x, -new_mouse_position_ndc.y, 0, 1));
+            auto old_mouse_position_world = glm::vec3(inverse_vp * glm::vec4(old_mouse_position_ndc.x, -old_mouse_position_ndc.y, 0, 1));
+
+            // Scale movement such that point under mouse on plane of target (parallel to near plane) stays constant
+            auto ratio = glm::length(camera.position - camera.target) / camera.near_plane;
+            auto delta = ratio * (new_mouse_position_world - old_mouse_position_world);
+
+            camera.position -= delta;
+            camera.target   -= delta; 
             updateCameraView(camera);
         }
 
