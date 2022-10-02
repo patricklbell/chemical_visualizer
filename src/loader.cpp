@@ -16,13 +16,95 @@
 #include "graphics.hpp"
 #include "utilities.hpp"
 
-// Mostly for making presentation
-constexpr bool draw_water = true;
-constexpr bool draw_residue_atoms = true;
-constexpr float residue_atom_alpha = 0.3;
-constexpr bool draw_chains = true;
-constexpr float chain_alpha = 1.0;
+//
+// General helper functions used by all loaders
+//
+static const float sphere_r = 0.7;
+static const float cylinder_r = 0.2;
+static const float bond_gap_r = 0.1;
 
+glm::vec4 getColorFromSymbol(std::string symbol) {
+    auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
+    if (color_1_lu == symbol_to_color_lut.end()) return glm::vec4(1.0);
+    else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
+}
+
+void createAtomEntity(const glm::vec3& pos, const glm::vec4& col, Entities& entities, float radius = sphere_r) {
+    auto& m_e = entities.instanced_entities.emplace_back();
+
+    m_e.albedo = col;
+    m_e.instance_mesh = InstancedMeshType::SPHERE;
+    m_e.scale = glm::mat3(radius);
+    m_e.position = pos;
+}
+
+void createCylinderEntity(const glm::vec3& pos_1, const glm::vec3& pos_2, const glm::vec4& col, Entities& entities, float radius = cylinder_r) {
+    auto delta = pos_2 - pos_1;
+    auto distance = glm::length(delta);
+
+    auto& e = entities.instanced_entities.emplace_back();
+    e.instance_mesh = InstancedMeshType::CYLINDER;
+    scaleMat3(e.scale, glm::vec3(distance, radius, radius));
+
+    e.position = pos_1;
+    e.albedo = col;
+    e.rotation = quatAlignAxisToDirection(glm::vec3(1, 0, 0), delta);
+}
+
+void createSingleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+    auto delta = pos_2 - pos_1;
+    auto distance = glm::length(delta);
+
+    for (int i = 0; i < 2; ++i) {
+        auto& e = entities.instanced_entities.emplace_back();
+        e.instance_mesh = InstancedMeshType::CYLINDER;
+        scaleMat3(e.scale, glm::vec3(distance / 2.0, radius, radius));
+
+        if (i == 0) {
+            e.position = pos_1;
+            e.albedo = col_1;
+            e.rotation = quatAlignAxisToDirection(glm::vec3(1, 0, 0), delta);
+        }
+        else {
+            e.position = pos_2;
+            e.albedo = col_2;
+            e.rotation = quatAlignAxisToDirection(glm::vec3(1, 0, 0), -delta);
+        }
+    }
+}
+
+void createDebugCartesian(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, Entities& entities, float r = cylinder_r) {
+    createAtomEntity(p, glm::vec4(1.0, 1.0, 1.0, 0.5), entities, r);
+    createCylinderEntity(p, p + a, glm::vec4(1, 0, 0, 0.5), entities, r);
+    createCylinderEntity(p, p + b, glm::vec4(0, 1, 0, 0.5), entities, r);
+    createCylinderEntity(p, p + c, glm::vec4(0, 0, 1, 0.5), entities, r);
+}
+
+void createDoubleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+    auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    for (int j = 0; j < 2; ++j) {
+        auto offset_1 = pos_1 + bond_gap_r * v_offset;
+        auto offset_2 = pos_2 + bond_gap_r * v_offset;
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
+        v_offset *= -1.0;
+    }
+}
+
+void createTripleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+    auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    for (int j = 0; j < 3; ++j) {
+        auto offset_1 = pos_1 + bond_gap_r * v_offset;
+        auto offset_2 = pos_2 + bond_gap_r * v_offset;
+        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
+        v_offset = v_offset * glm::angleAxis((float)(2.0 / 3.0 * PI), glm::normalize(pos_2 - pos_1));
+    }
+}
+
+//
+// Mol file loading and entity creation
+//
+
+// @todo error checking
 void loadMolFile(MolFile &data, std::string path){
     FILE *f;
     f=fopen(path.c_str(), "r");
@@ -41,11 +123,12 @@ void loadMolFile(MolFile &data, std::string path){
     fgets(data.comments, 80, f);
     printf("Comments: %s\n", data.comments);
 
-    fscanf(f, "%d %d %*[^\n] ", &data.num_atoms, &data.num_bonds);
-    printf("Num of atoms is %d and bonds is %d\n", data.num_atoms, data.num_bonds);
+    int num_atoms, num_bonds;
+    fscanf(f, "%d %d %*[^\n] ", &num_atoms, &num_bonds);
+    printf("Num of atoms is %d and bonds is %d\n", num_atoms, num_bonds);
 
-    data.atoms = (MolAtom*)malloc(sizeof(MolAtom)*data.num_atoms);
-    for(int i = 0; i < data.num_atoms; ++i){
+    data.atoms.resize(num_atoms);
+    for(int i = 0; i < num_atoms; ++i){
         auto &a = data.atoms[i];
 
         fscanf(f, "%f %f %f", &a.position.x, &a.position.y, &a.position.z);
@@ -57,8 +140,8 @@ void loadMolFile(MolFile &data, std::string path){
         printf("Atom %s position is x: %f y: %f z: %f\n", a.symbol, a.position.x, a.position.y, a.position.z);
     }
 
-    data.bonds = (MolBond*)malloc(sizeof(MolBond)*data.num_bonds);
-    for(int i = 0; i < data.num_bonds; ++i){
+    data.bonds.resize(num_bonds);
+    for(int i = 0; i < num_bonds; ++i){
         auto &b = data.bonds[i];
 
         fscanf(f, "%d %d %u %*[^\n]", &b.atom_1_index, &b.atom_2_index, &b.type);
@@ -68,128 +151,37 @@ void loadMolFile(MolFile &data, std::string path){
     }
 }
 
-static const float sphere_r = 0.7;
-static const float cylinder_r = 0.2;
-static const float bond_gap_r = 0.1;
-
-glm::vec4 getColorFromSymbol(std::string symbol) {
-    auto color_1_lu = symbol_to_color_lut.find(std::string(symbol));
-    if(color_1_lu == symbol_to_color_lut.end()) return glm::vec4(1.0);
-    else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
-}
-
-glm::vec4 getColorFromResidue(std::string residue) {
-    auto color_1_lu = residue_to_color_lut.find(std::string(residue));
-    if(color_1_lu == residue_to_color_lut.end()) return glm::vec4(unknown_residue_color, 1.0);
-    else                                        return glm::vec4(color_1_lu->second, 1.0);
-}
-
-void createAtomEntity(const glm::vec3 &pos, const glm::vec4 &col, Entities &entities, float radius=sphere_r) {
-    auto &m_e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
-
-    m_e.albedo = col;
-    m_e.instance_mesh = (int)InstanceNames::SPHERE;
-    m_e.scale = glm::mat3(radius);
-    m_e.position = pos;
-}
-
-void createCylinderEntity(const glm::vec3 &pos_1, const glm::vec3 &pos_2, const glm::vec4 &col, Entities &entities, float radius=cylinder_r) {
-    auto delta = pos_2 - pos_1;
-    auto distance = glm::length(delta); 
-
-    auto &e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
-    e.instance_mesh = (int)InstanceNames::CYLINDER;
-    scaleMat3(e.scale, glm::vec3(distance,  radius, radius));
-
-    e.position = pos_1;
-    e.albedo = col;
-    e.rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
-}
-
-void createSingleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
-    auto delta = pos_2 - pos_1;
-    auto distance = glm::length(delta); 
-
-    for(int i = 0; i < 2; ++i) {
-        auto &e = entities.instanced_entities.emplace_back(entities.instanced_entities.size());
-        e.instance_mesh = (int)InstanceNames::CYLINDER;
-        scaleMat3(e.scale, glm::vec3(distance/2.0,  radius, radius));
-
-        if(i == 0) {
-            e.position = pos_1;
-            e.albedo = col_1;
-            e.rotation = quatAlignAxisToDirection(glm::vec3(1,0,0),  delta);
-        } else {
-            e.position = pos_2;
-            e.albedo = col_2;
-            e.rotation = quatAlignAxisToDirection(glm::vec3(1,0,0), -delta);
-        }
-    }
-}
-
-void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec3 &b, const glm::vec3 &c, Entities &entities, float r=cylinder_r) {
-    createAtomEntity(p, glm::vec4(1.0,1.0,1.0,0.5), entities, r);
-    createCylinderEntity(p, p+a, glm::vec4(1,0,0,0.5), entities,r);
-    createCylinderEntity(p, p+b, glm::vec4(0,1,0,0.5), entities,r);
-    createCylinderEntity(p, p+c, glm::vec4(0,0,1,0.5), entities,r);
-}
-
-void createDoubleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
-    auto v_offset = anyPerpendicular(pos_2 - pos_1);
-    for(int j = 0; j < 2; ++j){
-        auto offset_1 = pos_1 + bond_gap_r*v_offset;
-        auto offset_2 = pos_2 + bond_gap_r*v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius/2.0);
-        v_offset *= -1.0;
-    }
-}
-
-void createTripleBondEntities(const glm::vec3 &pos_1, const glm::vec4 &col_1, const glm::vec3 &pos_2, const glm::vec4 &col_2, Entities &entities, float radius=cylinder_r) {
-    auto v_offset = anyPerpendicular(pos_2 - pos_1);
-    for(int j = 0; j < 3; ++j){
-        auto offset_1 = pos_1 + bond_gap_r*v_offset;
-        auto offset_2 = pos_2 + bond_gap_r*v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius/2.0);
-        v_offset = v_offset*glm::angleAxis((float)(2.0/3.0 * PI), glm::normalize(pos_2 - pos_1));
-    }
+void MolFile::clear() {
+    atoms.clear();
+    bonds.clear();
 }
 
 void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera){
-#ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
-#else
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
-#endif
     static const float relative_cylinder_size = 0.1;
     static const float relative_sphere_size   = 0.26;
 
     float avg_bond_length = 0.0;
-    for(int i = 0; i < data.num_bonds; ++i){
-        auto &b = data.bonds[i];
+    for(auto &b : data.bonds){
         auto type = b.type;
         auto &atom_1 = data.atoms[b.atom_1_index];
         auto &atom_2 = data.atoms[b.atom_2_index];
         avg_bond_length += glm::length(atom_2.position - atom_1.position);
     }
-    avg_bond_length /= data.num_bonds;
+    avg_bond_length /= data.bonds.size();
     float calc_cylinder_r = avg_bond_length*relative_cylinder_size;
     float calc_sphere_r   = avg_bond_length*relative_sphere_size;
 
     auto center = glm::vec3(0.0);
-    entities.instanced_entities.reserve(entities.instanced_entities.size() + data.num_atoms);
-    for(int i = 0; i < data.num_atoms; ++i){
-        auto &a = data.atoms[i];
+    entities.instanced_entities.reserve(entities.instanced_entities.size() + data.atoms.size());
+    for(auto &a : data.atoms){
         auto color = getColorFromSymbol(a.symbol);
         createAtomEntity(a.position, color, entities, calc_sphere_r);
         center += a.position;
     }
-    center /= data.num_atoms;
+    center /= data.atoms.size();
 
     float max_distance = 0.0;
-    for (int i = 0; i < data.num_atoms; ++i) {
-        auto& a = data.atoms[i];
+    for (auto& a : data.atoms) {
         auto dist = glm::length(a.position - center);
         if (dist > max_distance) {
             max_distance = dist;
@@ -232,8 +224,9 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
 
     //    const MolBondType &type = i.second;
     
-    for(int i = 0; i < data.num_bonds; ++i){
-        auto &b = data.bonds[i];
+    // Each bond is at least a single bond which is two entities
+    entities.instanced_entities.reserve(entities.instanced_entities.size() + data.bonds.size()*2);
+    for(auto& b : data.bonds) {
         auto type = b.type;
         auto atom_1 = data.atoms[b.atom_1_index];
         auto atom_2 = data.atoms[b.atom_2_index];
@@ -266,6 +259,9 @@ void createEntitiesFromMolFile(Entities &entities, MolFile &data, Camera &camera
     }
 }
 
+//
+// Pdb file loading and entity creation
+//
 long hashBondPair(int id_1, int id_2) {
     if(id_2 < id_1) return (long)id_1 ^ ((long)id_2 << 16);
     else            return (long)id_2 ^ ((long)id_1 << 16);
@@ -280,6 +276,14 @@ void createResidueId(int seq_num, char res_name[4], char chain_id, char i_code, 
     sprintf(result, "%3s%c%4d%c", res_name, chain_id, seq_num, i_code); 
 }
 
+glm::vec4 getColorFromResidueName(std::string residue) {
+    auto color_1_lu = residue_to_color_lut.find(std::string(residue));
+    if (color_1_lu == residue_to_color_lut.end()) return glm::vec4(unknown_residue_color, 1.0);
+    else                                        return glm::vec4(color_1_lu->second, 1.0);
+}
+
+// Dictionary that provides extra information about residue bonds,
+// Its format is not the same as a normal pdb file
 void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path) {
     FILE *f;
     f=fopen(path.data(), "r");
@@ -455,10 +459,10 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
                 sscanf(&line[76], "%2s", atom.symbol);
                 atom.symbol[2] = '\0';
 
-                if(atom.is_heterogen) printf("HETATM:");
-                else                  printf("ATOM  :");
-                printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d\n", 
-                        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
+                //if(atom.is_heterogen) printf("HETATM:");
+                //else                  printf("ATOM  :");
+                //printf(" serial %4d name %s symbol %s res_name %s chain_id %c i_code %c res_seq %3d\n", 
+                //        atom.serial, atom.name, atom.symbol, atom.res_name, atom.chain_id, atom.i_code, atom.res_seq);
             } else if(!strcmp(record_name, "CONECT")) { 
                 int atom_id;
                 int connect_ids[4];
@@ -648,7 +652,7 @@ void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict){
 }
 
 // Mesh which blends between different secondary structures in one polypeptide chain 
-void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &planes) {
+void createPolypeptideChainsMeshes(PdbChain &chain, std::vector<PeptidePlane> &planes) {
     constexpr float r = 0.25;
     // By default colors based on secondary structures
     constexpr bool do_chain_colors = true;
@@ -713,21 +717,12 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
 
     glm::vec3 previous_normal = planes[0].normal;
 
-    auto helix_color  = glm::vec4(glm::vec3(255, 0,   128) / 255.f, chain_alpha);
-    auto strand_color = glm::vec4(glm::vec3(255, 200, 0  ) / 255.f, chain_alpha);
-    auto coil_color   = glm::vec4(glm::vec3(96,  128, 255) / 255.f, chain_alpha);
-    glm::vec4 chain_color;
-    if(do_chain_colors) {
-        chain_color = glm::vec4(randomSaturatedColor(), 1.0);
-    }
     for(int i = 0; i < num_planes - 1; i++) {
-        auto &m_e = entities.mesh_entities.emplace_back(entities.mesh_entities.size());
+        auto& mesh = planes[i].residue_1->mesh;
 
         // @note middle peptide or similar might reduce floating point errors
         // need to offset all vertex positions then
-        //m_e.position = planes[i].position;
 
-        auto &mesh = m_e.mesh;
         mesh.draw_mode = GL_TRIANGLES;
         mesh.draw_type = GL_UNSIGNED_SHORT;
 
@@ -747,21 +742,18 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
         switch (planes[i].residue_1->type) {
             case PdbResidueType::COIL:
                 {
-                    m_e.albedo = coil_color;
                     pf1  = circle_profile;
                     pfn1 = circle_profile_normals;
                     break;
                 }
             case PdbResidueType::HELIX:
                 {
-                    m_e.albedo = helix_color;
                     pf1  = ribbon_profile;
                     pfn1 = ribbon_profile_normals;
                     break;
                 }
             case PdbResidueType::STRAND:
                 {
-                    m_e.albedo = strand_color;
                     pf1  = rectangle_profile;
                     pfn1 = rectangle_profile_normals;
                     break;
@@ -800,13 +792,6 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
                     pfn2 = circle_profile_normals;
                     break;
                 }
-        }
-
-        if(do_chain_colors) {
-            m_e.albedo = chain_color;
-        }
-        if(do_residue_colors) {
-            m_e.albedo = getColorFromResidue(planes[i].residue_1->res_name);
         }
 
         int p1_i = i-1;
@@ -905,25 +890,128 @@ void createPolypeptideEntity(Entities &entities, std::vector<PeptidePlane> &plan
             }
         }
         createMeshVao(mesh);
+        planes[i].residue_1->mesh_generated = true;
     }
 }
 
-void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera){
-#ifdef USE_ASSIMP
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/sphere.obj");
-    loadMeshWithAssimp(entities.instanced_meshes.emplace_back(), "data/models/cylinder.obj");
-#else
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/sphere.mesh");
-    readMeshFile(entities.instanced_meshes.emplace_back(), "data/models/cylinder.mesh");
-#endif
+void createPdbModelMeshes(PdbModel &model) {
+    for (auto& p : model.chains) {
+        auto& chain = p.second;
+        if (chain.residues.size() < 2) continue;
 
-    // @note Assume first model is the correct one
-    if (data.models.size() == 0) return;
-    auto &model = data.models[0];
+        std::vector<PeptidePlane> peptide_planes;
 
+        //printf("Chain %c\n", chain.chain_id);
+        int plane_i = 0;
+        for (int i = 0; i < chain.residues.size() - 1; i++) {
+            // Determine plane of connection between residues through peptide bond
+            auto& r1 = chain.residues[i];
+            auto& r2 = chain.residues[i + 1];
+
+            // @note Peptide bond forms between carboxylic group and amino group.
+            // PDB should guarantee that residues' label the alpha carbon as "CA"
+            // we just use the "O" of the amine to determine the perpendicular plane 
+            // between adjacent amino acids of protein.
+            auto lu_CA1 = r1->atom_name_id.find("CA  ");
+            if (lu_CA1 == r1->atom_name_id.end()) continue;
+            auto lu_CA2 = r2->atom_name_id.find("CA  ");
+            if (lu_CA2 == r2->atom_name_id.end()) continue;
+            //auto lu_O1  = r1->atom_name_id.find(" O  ");
+            //if(lu_O1   == r1->atom_name_id.end()) continue;
+
+            auto CA1 = model.atoms[lu_CA1->second].position;
+            auto CA2 = model.atoms[lu_CA2->second].position;
+            //auto O1  = model.atoms[lu_O1 ->second].position;
+
+            auto& plane = peptide_planes.emplace_back();
+            plane.residue_1 = r1;
+            plane.residue_2 = r2;
+
+            plane.position = (CA1 + CA2) / 2.f;
+            plane.forward = glm::normalize(CA2 - CA1);
+            plane.normal = glm::vec3(0);
+
+            // This a more chemically accurate way of calulating plane frames but is less smooth
+            //plane.forward = glm::normalize(CA2 - CA1);
+            //plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
+            //// To ensure perpendicularity calculate right
+            //plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
+
+            //printf("Peptide Plane %d --> %d\n", i, i+1);
+        }
+        if (peptide_planes.size() == 0) continue;
+
+        // Extends last peptide plane to pass through final alpha carbon,
+        // @note I think this messes up the last frame so the closed face has incorrect normals
+        /*{
+            auto plane = peptide_planes[peptide_planes.size() - 1];
+            auto lu_CA2 = plane.residue_2->atom_name_id.find("CA  ");
+            if (lu_CA2 != plane.residue_2->atom_name_id.end()) {
+                plane.position = model.atoms[lu_CA2->second].position;
+                peptide_planes.emplace_back(plane);
+            }
+        }*/
+
+        // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
+        // Use Cardinal spline calculation of forward rather than using true plane for smoother result
+        constexpr float c = 0.25;
+        for (uint64_t i = 1; i < (uint64_t)peptide_planes.size() - 1; i++) {
+            auto& p = peptide_planes;
+            p[i].forward = (1 - c) * (p[i + 1].position - p[i - 1].position);
+        }
+
+        // Uses hermite spline derivatives to determine the normal so adjacent spline's orientations align
+        for (uint64_t i = 0; i < (uint64_t)peptide_planes.size() - 1; i++) {
+            auto& p = peptide_planes;
+            auto n0 = -6.f * p[i].position - 4.f * p[i].forward + 6.f * p[i + 1].position - 2.f * p[i + 1].forward;
+            n0 = perpendicularComponent(n0, p[i].forward);
+            p[i].normal += n0 / 2.f;
+            auto n1 = 6.f * p[i].position + 2.f * p[i].forward - 6.f * p[i + 1].position + 4.f * p[i + 1].forward;
+            n1 = perpendicularComponent(n1, p[i + 1].forward);
+            p[i + 1].normal += n1 / 2.f;
+        }
+
+        // Calulcate binormal and ensures adjacent normals aren't flipped
+        for (uint64_t i = 0; i < peptide_planes.size(); i++) {
+            auto& p = peptide_planes;
+            p[i].normal = glm::normalize(p[i].normal);
+            p[i].right = glm::normalize(glm::cross(p[i].forward, p[i].normal));
+        }
+        // This ensures the first and last planes normals are normalised since they only get half a normal
+        {
+            auto& pb = peptide_planes[0];
+            auto& pe = peptide_planes[peptide_planes.size() - 1];
+
+            pb.normal = glm::normalize(glm::cross(pb.forward, pb.right));
+            pe.normal = glm::normalize(glm::cross(pe.forward, pe.right));
+        }
+
+        // Flip peptides that are >180 from previous
+        for (uint64_t i = 1; i < peptide_planes.size(); i++) {
+            if (glm::dot(peptide_planes[i].normal, peptide_planes[i - 1].normal) < 0) {
+                peptide_planes[i].normal *= -1;
+                peptide_planes[i].right *= -1;
+            }
+        }
+
+        // Debug peptide planes
+        /*for(int i = 1; i < peptide_planes.size(); i++) {
+            createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
+            auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
+            createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);
+        }*/
+
+        createPolypeptideChainsMeshes(chain, peptide_planes);
+    }
+}
+
+void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSettings &settings, Camera &camera) {
     static const float relative_cylinder_size = 0.10;
     static const float relative_sphere_size   = 0.15;
     float avg_bond_length = 0.0;
+
+    // We need to calculate average bond length before hand to determine size, 
+    // perhaps this could be done by modifying size matrix
     for(const auto &p : model.connections) {
         auto &b = p.second;
 
@@ -934,17 +1022,12 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        //if(!draw_residue_atoms && (!atom_1.is_heterogen || !atom_2.is_heterogen)) continue;
-
         avg_bond_length += glm::length(atom_2.position - atom_1.position);
     }
     avg_bond_length /= model.connections.size();
     float calc_cylinder_r = glm::max(avg_bond_length*relative_cylinder_size, 0.1f);
     float calc_sphere_r   = glm::max(avg_bond_length*relative_sphere_size, 0.2f);
 
-    // Draw hetero atoms and the bonds between them (including non hetero edge atoms)
-    // @speed
-    std::set<int> encountered_hetatms;
     for(const auto &p : model.connections) {
         auto &b = p.second;
         auto type = b.type;
@@ -956,18 +1039,20 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         if(atom_2_lu == model.atoms.end()) continue;
         auto atom_2 = atom_2_lu->second;
 
-        //printf("Hetero Bond %d --> %d with type %u\n", b.atom_1_id, b.atom_2_id, type);
         auto color_1 = getColorFromSymbol(atom_1.symbol);
         auto color_2 = getColorFromSymbol(atom_2.symbol);
 
-        // Add transparency to connections between non-hetero atoms
-        if(!atom_1.is_heterogen || !atom_2.is_heterogen) {
-            if(!draw_residue_atoms) continue;
-            color_1.w = residue_atom_alpha;
-            color_2.w = residue_atom_alpha;
-        } else {
-            encountered_hetatms.insert(b.atom_1_id);
-            encountered_hetatms.insert(b.atom_2_id);
+        bool is_heterogen_bond = atom_1.is_heterogen && atom_2.is_heterogen;
+
+        if (is_heterogen_bond) {
+            if (!settings.draw_hetero_atoms) continue;
+            color_1.w = settings.hetero_atoms_alpha;
+            color_2.w = settings.hetero_atoms_alpha;
+        }
+        else {
+            if (!settings.draw_residue_atoms) continue;
+            color_1.w = settings.residue_atoms_alpha;
+            color_2.w = settings.residue_atoms_alpha;
         }
 
         switch(type){
@@ -1000,20 +1085,23 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
         auto &atom = p.second;
         center += atom.position;
 
-        // If atom is not hetero draw it with transparency
-        if(draw_residue_atoms && encountered_hetatms.find(atom.serial) == encountered_hetatms.end()) {
-            // Water is a special case
-            if(!draw_water && !strcmp(atom.res_name, "HOH")) continue;
-
-            auto color = getColorFromSymbol(atom.symbol);
-            color.w = residue_atom_alpha;
-            //if(!strcmp(atom.name, "CA  ")) color.w = 1.0;
-            createAtomEntity(atom.position, color, entities, calc_sphere_r);
+        auto color = getColorFromSymbol(atom.symbol);
+        if (!strcmp(atom.res_name, "HOH")) {
+            if (!settings.draw_water_atoms) continue;
+            color.w = settings.water_atoms_alpha;
+        } else if(atom.is_heterogen) {
+            if (!settings.draw_hetero_atoms) continue;
+            color.w = settings.hetero_atoms_alpha;
+        } else {
+            if (!settings.draw_residue_atoms) continue;
+            color.w = settings.residue_atoms_alpha;
         }
 
-        //if(!a.is_heterogen) continue;
-        //encountered_hetatms.insert(a.serial);
+        createAtomEntity(atom.position, color, entities, calc_sphere_r);
     }
+
+    // There is probably a faster algorithm for determining a bounding sphere but for now
+    // just loop to find center then loop to find max distance from center
     center /= model.atoms.size();
     float max_distance = 0.0;
     for(const auto &p : model.atoms) {
@@ -1027,120 +1115,68 @@ void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera
     camera.position = camera.target + glm::normalize(camera.position - camera.target)*max_distance*2.2f;
     updateCameraView(camera);
 
-    for(const auto &atom_id : encountered_hetatms) {
-        auto &atom = model.atoms[atom_id];
-        auto color = getColorFromSymbol(atom.symbol);
-        createAtomEntity(atom.position, color, entities, calc_sphere_r);
-    }
+    // Create entities for ribbon meshes which have been precalculated
+    if (settings.draw_residue_ribbons) {
+        for (auto& p : model.chains) {
+            auto& chain = p.second;
 
-    if(!draw_chains) return;
+            auto chain_color = glm::vec4(randomSaturatedColor((unsigned int)chain.chain_id), 1.0);
+            for (auto& r : chain.residues) {
+                if (!r->mesh_generated) continue;
 
-    for(const auto &p : model.chains) {
-        auto &chain = p.second;
-        if(chain.residues.size() < 2) continue;
+                auto &m_e = entities.mesh_entities.emplace_back();
 
-        std::vector<PeptidePlane> peptide_planes;
-    
-        //printf("Chain %c\n", chain.chain_id);
-        int plane_i = 0;
-        for(int i = 0; i < chain.residues.size() - 1; i++) {
-            // Determine plane of connection between residues through peptide bond
-            auto &r1 = chain.residues[i];
-            auto &r2 = chain.residues[i+1];
-
-            // @note Peptide bond forms between carboxylic group and amino group.
-            // PDB should guarantee that residues' label the alpha carbon as "CA"
-            // we just use the "O" of the amine to determine the perpendicular plane 
-            // between adjacent amino acids of protein.
-            auto lu_CA1 = r1->atom_name_id.find("CA  ");
-            if(lu_CA1  == r1->atom_name_id.end()) continue;
-            auto lu_CA2 = r2->atom_name_id.find("CA  ");
-            if(lu_CA2  == r2->atom_name_id.end()) continue;
-            //auto lu_O1  = r1->atom_name_id.find(" O  ");
-            //if(lu_O1   == r1->atom_name_id.end()) continue;
-            
-            auto CA1 = model.atoms[lu_CA1->second].position;
-            auto CA2 = model.atoms[lu_CA2->second].position;
-            //auto O1  = model.atoms[lu_O1 ->second].position;
-
-            auto &plane = peptide_planes.emplace_back();
-            plane.residue_1 = r1;
-            plane.residue_2 = r2;
-
-            plane.position = (CA1 + CA2) / 2.f;
-            plane.forward = glm::normalize(CA2 - CA1);
-            plane.normal = glm::vec3(0);
-
-            // This a more chemically accurate way of calulating plane frames but is less smooth
-            //plane.forward = glm::normalize(CA2 - CA1);
-            //plane.normal  = glm::normalize(glm::cross(plane.forward, O1 - CA1));
-            //// To ensure perpendicularity calculate right
-            //plane.right   = glm::normalize(glm::cross(plane.normal, plane.forward));
-
-            //printf("Peptide Plane %d --> %d\n", i, i+1);
-        }
-        if (peptide_planes.size() == 0) continue;
-
-        // Extends last peptide plane to pass through final alpha carbon,
-        // @note I think this messes up the last frame so the closed face has incorrect normals
-        /*{
-            auto plane = peptide_planes[peptide_planes.size() - 1];
-            auto lu_CA2 = plane.residue_2->atom_name_id.find("CA  ");
-            if (lu_CA2 != plane.residue_2->atom_name_id.end()) {
-                plane.position = model.atoms[lu_CA2->second].position;
-                peptide_planes.emplace_back(plane);
-            }
-        }*/
-        
-        // https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Representations
-        // Use Cardinal spline calculation of forward rather than using true plane for smoother result
-        constexpr float c = 0.25;
-        for(uint64_t i = 1; i < (uint64_t)peptide_planes.size() - 1; i++) {
-            auto &p = peptide_planes;
-            p[i].forward = (1-c) * (p[i+1].position - p[i-1].position);
-        }
-
-        // Uses hermite spline derivatives to determine the normal so adjacent spline's orientations align
-        for(uint64_t i = 0; i < (uint64_t)peptide_planes.size() - 1; i++) {
-            auto &p = peptide_planes;
-            auto n0 = -6.f*p[i].position - 4.f*p[i].forward + 6.f*p[i+1].position - 2.f*p[i+1].forward;
-            n0 = perpendicularComponent(n0, p[i].forward);
-            p[i].normal += n0 / 2.f;
-            auto n1 =  6.f*p[i].position + 2.f*p[i].forward - 6.f*p[i+1].position + 4.f*p[i+1].forward;
-            n1 = perpendicularComponent(n1, p[i+1].forward);
-            p[i+1].normal += n1 / 2.f;
-        }
-
-        // Calulcate binormal and ensures adjacent normals aren't flipped
-        for(uint64_t i = 0; i < peptide_planes.size(); i++) {
-            auto &p = peptide_planes;
-            p[i].normal = glm::normalize(p[i].normal);
-            p[i].right = glm::normalize(glm::cross(p[i].forward, p[i].normal));
-        }
-        // This ensures the first and last planes normals are normalised since they only get half a normal
-        {
-            auto &pb = peptide_planes[0];
-            auto& pe = peptide_planes[peptide_planes.size() - 1];
-
-            pb.normal = glm::normalize(glm::cross(pb.forward, pb.right));
-            pe.normal = glm::normalize(glm::cross(pe.forward, pe.right));
-        }
-
-        // Flip peptides that are >180 from previous
-        for (uint64_t i = 1; i < peptide_planes.size(); i++) {
-            if (glm::dot(peptide_planes[i].normal, peptide_planes[i-1].normal) < 0) {
-                peptide_planes[i].normal *= -1;
-                peptide_planes[i].right *= -1;
+                m_e.mesh = &r->mesh;
+                switch (settings.residue_color_mode)
+                {
+                    case PdbResidueColorMode::SECONDARY:
+                    {
+                        switch (r->type) {
+                            case PdbResidueType::COIL:
+                            {
+                                m_e.albedo = coil_color;
+                                break;
+                            }
+                            case PdbResidueType::HELIX:
+                            {
+                                m_e.albedo = helix_color;
+                                break;
+                            }
+                            case PdbResidueType::STRAND:
+                            {
+                                m_e.albedo = strand_color;
+                                break;
+                            }
+                            default:
+                            {
+                                fprintf(stderr, "Unknown residue type when coloring\n");
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case PdbResidueColorMode::CHAIN:
+                    {
+                        m_e.albedo = chain_color;
+                        break;
+                    }
+                    case PdbResidueColorMode::AMINO_ACID:
+                    {
+                        m_e.albedo = getColorFromResidueName(r->res_name);
+                        break;
+                    }
+                    default:
+                    {
+                        fprintf(stderr, "unknown residue color mode\n");
+                        break;
+                    }
+                }
+                m_e.albedo.w = settings.residue_ribbons_alpha;
             }
         }
-
-        // Debug peptide planes
-        /*for(int i = 1; i < peptide_planes.size(); i++) {
-            createAtomEntity(peptide_planes[i].position, glm::vec4(1.0, 0.0, 0.0, 1.0), entities, calc_sphere_r);
-            auto fwd = glm::normalize(peptide_planes[i].forward)*1.5f;
-            createSingleBondEntities(peptide_planes[i].position - fwd*0.5f, glm::vec4(1,0,0,1), peptide_planes[i].position+fwd*0.5f, glm::vec4(1,0,0,1), entities,calc_cylinder_r/2.0f);
-        }*/
-
-        createPolypeptideEntity(entities, peptide_planes);
     }
+}
+
+void PdbFile::clear() {
+    models.clear();
 }

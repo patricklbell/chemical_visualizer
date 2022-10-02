@@ -134,15 +134,23 @@ int main() {
             pair.second.second = std::filesystem::last_write_time(pair.first);
     }
 
+    Entities entities;
+
     // Not necessary if you don't want to see peptide's actual bonds
     loadPdbDictionaryFile(pdb_dictionary, "data/examples/pdb/het_dictionary.pdb");
-
-    Entities entities;
     {
-        PdbFile pdb_file;
-        loadPdbFile(pdb_file, "data/examples/pdb/1bzv.pdb", &pdb_dictionary);
-        createEntitiesFromPdbFile(entities, pdb_file, camera);
-    }
+        ui::pdbfile.clear();
+        loadPdbFile(ui::pdbfile, "data/examples/pdb/1bzv.pdb", &pdb_dictionary);
+
+        if (ui::pdbfile.models.size() > 0) {
+            entities.clear();
+            createPdbModelMeshes(ui::pdbfile.models[0]);
+            createEntitiesFromPdbModel(entities, ui::pdbfile.models[0], ui::pdbfile_settings, camera);
+
+            ui::loaded_file_path = "data/examples/pdb/1bzv.pdb";
+            ui::mode = UiMode::PDB;
+        }
+    };
 
     initGui();
     initControls();

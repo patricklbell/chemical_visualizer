@@ -54,10 +54,11 @@ struct MolBond {
 struct MolFile {
     char title[80];
     char comments[80];
-    int num_atoms;
-    MolAtom *atoms;
-    int num_bonds;
-    MolBond *bonds;
+    
+    std::vector<MolAtom> atoms;
+    std::vector<MolBond> bonds;
+
+    void clear();
 };
 
 void loadMolFile(MolFile &data, std::string path);
@@ -186,6 +187,12 @@ struct PdbResidue {
     // Used for constructing secondary structures, not inherent to residue
     // assume coil if pdb doesn"t specify
     PdbResidueType type = PdbResidueType::COIL;
+
+    // 
+    // Used for rendering 
+    //
+    bool mesh_generated = false;
+    Mesh mesh; // The first residue of the chain owns the mesh
 };
 
 // A contiguous sequence of residues (in secondary structures) which form one mesh
@@ -209,11 +216,15 @@ struct PdbModel {
     std::unordered_map<std::string, PdbSheet> sheets; // sheet_id -> sheet
     
     std::unordered_map<int, PdbResidue> residues; // res_seq -> residue
+
+    bool renderable = false; // Whether meshes have been generated
 };
 
 struct PdbFile {
     // Each model represents the same structure, mainly for NMR entries
     std::unordered_map<int, PdbModel> models; // serial -> model
+
+    void clear();
 };
 
 struct PdbDictionaryConnect {
@@ -228,6 +239,27 @@ struct PdbDictionary {
     std::unordered_map<std::string, std::unordered_map<std::string, PdbDictionaryConnect>> residues; 
 };
 
+enum class PdbResidueColorMode {
+    CHAIN     ,
+    AMINO_ACID,
+    SECONDARY ,
+};
+
+struct PdbDrawSettings {
+    bool draw_hetero_atoms    = true;
+    bool draw_water_atoms     = false;
+    bool draw_residue_atoms   = false;
+    bool draw_residue_ribbons = true;
+
+    // Alpha channel of color
+    float hetero_atoms_alpha    = 1.0;
+    float water_atoms_alpha     = 1.0;
+    float residue_atoms_alpha   = 1.0;
+    float residue_ribbons_alpha = 1.0;
+
+    PdbResidueColorMode residue_color_mode;
+};
+
 // Approximates plane of residue with peptide bonds
 struct PeptidePlane {
     PdbResidue *residue_1;
@@ -240,7 +272,8 @@ void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec
 
 void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path);
 void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict=nullptr);
-void createEntitiesFromPdbFile(Entities &entities, PdbFile &data, Camera &camera);
+void createPdbModelMeshes(PdbModel& model);
+void createEntitiesFromPdbModel(Entities& entities, PdbModel& model, PdbDrawSettings& settings, Camera& camera);
 
 // --------------------------------Color LUTs-------------------------------- //
 // Based on: https://jmol.sourceforge.net/jscolors/
@@ -375,5 +408,9 @@ const std::unordered_map<std::string, glm::vec3> residue_to_color_lut = {
     {"ASX",	glm::vec3(255/255.f,105/255.f,180/255.f)},
     {"GLX",	glm::vec3(255/255.f,105/255.f,180/255.f)},
 };
+
+const auto helix_color = glm::vec4(glm::vec3(255, 0, 128) / 255.f, 1.0);
+const auto strand_color = glm::vec4(glm::vec3(255, 200, 0) / 255.f, 1.0);
+const auto coil_color = glm::vec4(glm::vec3(96, 128, 255) / 255.f, 1.0);
 
 #endif

@@ -17,7 +17,7 @@
 #include "shader.hpp"
 #include "graphics.hpp"
 
-void Mesh::free_resources(){
+Mesh::~Mesh(){
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &indices_vbo);
     glDeleteBuffers(1, &vertices_vbo);

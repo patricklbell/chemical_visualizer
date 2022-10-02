@@ -7,6 +7,12 @@
 
 #include <glm/glm.hpp>
 
+enum InstancedMeshType : uint64_t {
+    SPHERE = 0,
+    CYLINDER = 1,
+    NUM_TYPES,
+};
+
 struct Material {
     glm::fvec3 albedo;
 } typedef Material;
@@ -27,9 +33,7 @@ struct Mesh {
     GLint          *draw_start = NULL;
     GLint          *draw_count = NULL;
 
-    // To get around move/swap etc calling destructor, just call it manually
-    // @note could implement move, swap etc...
-    void free_resources();
+    ~Mesh();
 };
 
 void createMeshVao(Mesh &mesh);

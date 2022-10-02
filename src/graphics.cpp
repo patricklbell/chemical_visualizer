@@ -23,6 +23,7 @@ bool   window_resized;
 namespace graphics{
     glm::vec3 sun_color;
     glm::vec3 sun_direction;
+    std::vector<Mesh> instanced_meshes;
 }
 
 using namespace graphics;
@@ -41,6 +42,15 @@ void framebufferSizeCallback(GLFWwindow *window, int width, int height){}
 void initGraphicsPrimitives(){
     sun_direction = glm::vec3(-0.7071067811865475, -0.7071067811865475, 0);
     sun_color = 10.0f*glm::vec3(0.941, 0.933, 0.849);
+
+    instanced_meshes.resize(InstancedMeshType::NUM_TYPES);
+#ifdef USE_ASSIMP
+    loadMeshWithAssimp(instanced_meshes[InstancedMeshType::SPHERE], "data/models/sphere.obj");
+    loadMeshWithAssimp(instanced_meshes[InstancedMeshType::CYLINDER], "data/models/cylinder.obj");
+#else
+    readMeshFile(instanced_meshes[InstancedMeshType::SPHERE], "data/models/sphere.mesh");
+    readMeshFile(instanced_meshes[InstancedMeshType::CYLINDER], "data/models/cylinder.mesh");
+#endif
 }
 
 bool do_write_tga = false;
@@ -73,6 +83,13 @@ void checkWriteFrambufferToTga() {
     do_write_tga = false;
 }
 
+static void drawMesh(Mesh& mesh) {
+    glBindVertexArray(mesh.vao);
+    for (int j = 0; j < mesh.num_materials; ++j) {
+        glDrawElements(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte) * mesh.draw_start[j]));
+    }
+}
+
 void drawEntities(const Entities &entities, const Camera &camera){
     constexpr bool do_inverse_hull = false;
     constexpr bool do_transparency = true;
@@ -93,17 +110,16 @@ void drawEntities(const Entities &entities, const Camera &camera){
         glUseProgram(shader::null_program);
         glUniform1f(shader::null_uniforms.line_width, line_width);
         for (const auto &m_e : entities.mesh_entities) {
+            // @debug
+            if (m_e.mesh == nullptr) continue;
+
             // @speed precalculate since most entities are static
             auto model = createModelMatrix(m_e.position, m_e.rotation, m_e.scale);
             auto mvp = vp * model;
             
             glUniformMatrix4fv(shader::null_uniforms.mvp, 1, GL_FALSE, &mvp[0][0]);
 
-            const auto &mesh = m_e.mesh;
-            glBindVertexArray(mesh.vao);
-            for (int j = 0; j < mesh.num_materials; ++j) {
-                glDrawElements(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]));
-            }
+            drawMesh(*m_e.mesh);
         }
         glDepthFunc (GL_LESS);
         glCullFace (GL_BACK);
@@ -119,6 +135,9 @@ void drawEntities(const Entities &entities, const Camera &camera){
     glUniform3fv(shader::basic_uniforms.camera_position, 1, &camera.position[0]);
 
     for (const auto &m_e : entities.mesh_entities) {
+        // @debug
+        if (m_e.mesh == nullptr) continue;
+
         // @speed precalculate since most entities are static
         auto model = createModelMatrix(m_e.position, m_e.rotation, m_e.scale);
         auto mvp = vp * model;
@@ -128,17 +147,13 @@ void drawEntities(const Entities &entities, const Camera &camera){
 
         glUniform4fv(shader::basic_uniforms.albedo, 1, &m_e.albedo[0]);
 
-        const auto &mesh = m_e.mesh;
-        glBindVertexArray(mesh.vao);
-        for (int j = 0; j < mesh.num_materials; ++j) {
-            glDrawElements(mesh.draw_mode, mesh.draw_count[j], mesh.draw_type, (GLvoid*)(sizeof(GLubyte)*mesh.draw_start[j]));
-        }
+        drawMesh(*m_e.mesh);
     }
     if(do_transparency) {
         glDisable(GL_BLEND);
     }
 
-    int num_instance_meshes = entities.instanced_meshes.size();
+    int num_instance_meshes = instanced_meshes.size();
     int num_instance_entities = entities.instanced_entities.size();
     if(num_instance_meshes > 0 && num_instance_entities > 0) {
         std::vector<std::vector<glm::mat4>> instanced_models(num_instance_meshes, std::vector<glm::mat4>());
@@ -157,7 +172,7 @@ void drawEntities(const Entities &entities, const Camera &camera){
         // @speed I think this could be done by making one shared buffer for all instanced meshes
         // and indexing into it which would propably be faster
         for(int i = 0; i < num_instance_meshes; ++i) {
-            auto &mesh = entities.instanced_meshes[i];
+            auto &mesh = instanced_meshes[i];
 
             int num = instanced_albedos[i].size();
             glBindVertexArray(mesh.vao);

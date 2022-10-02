@@ -43,7 +43,7 @@ void substrFloat(const char *src, int start, int end, float *result);
 // Some fairly hacky color generation
 //
 glm::vec3 randomColor();
-glm::vec3 randomSaturatedColor();
+glm::vec3 randomSaturatedColor(unsigned int seed);
 glm::vec3 hsvToRgb(const glm::vec3 &hsv);
 
 //

@@ -26,7 +26,6 @@ namespace controls {
 
 using namespace controls;
 
-
 void createDefaultCamera(Camera &camera){
     camera.position = glm::vec3(3,3,3);
     camera.target = glm::vec3(0,0,0);
@@ -42,14 +41,13 @@ void updateCameraView(Camera &camera){
 
 void updateCameraProjection(Camera &camera){
     if (camera.is_ortho) {
-        // for ortho size is a function of fov and dist to target
         auto distance = glm::length(camera.target - camera.position);
-        auto ratio_size_per_depth = glm::atan(camera.fov * 2.0f);
-        auto aspect = static_cast<float>(window_width) / static_cast<float>(window_height);
+        auto ratio_size_per_depth = glm::atan(camera.fov);
+        auto aspect = (float)window_width / (float)window_height;
         auto size_y = ratio_size_per_depth * distance;
         auto size_x = ratio_size_per_depth * aspect * distance;
 
-        camera.projection = glm::ortho(-size_x, size_x, -size_y, size_y, 0.0f, camera.far_plane);
+        camera.projection = glm::ortho(-size_x, size_x, -size_y, size_y, -camera.near_plane, camera.far_plane);
     }
     else {
         camera.projection = glm::perspective(camera.fov, (float)window_width/(float)window_height, camera.near_plane, camera.far_plane);
