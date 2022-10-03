@@ -73,15 +73,21 @@ if(EMSCRIPTEN)
         COMMENT "Copying files from ${CMAKE_SOURCE_DIR}/data/ to ${CMAKE_BINARY_DIR}/data")
 
 else()
-
-    set(SOURCES_WASM_APP 
+    set(SOURCES_GLFW_APP 
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/assets.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/controls.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/entities.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/graphics.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/loader.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/shader.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/utilities.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/src/main.cpp
     )    
     include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/glfw_app/include/
     )
     add_executable(glfw_app
-        ${SOURCES_WASM_APP}
+        ${SOURCES_GLFW_APP}
         glad/src/glad.c
     )
     target_include_directories(glfw_app PUBLIC
@@ -93,7 +99,6 @@ else()
     )
     target_link_libraries(glfw_app
         glfw
-        ${GALAGA_MACHINE_LIBRARIES}
         ${OPENGL_LIBRARIES}
         ${OPENGL_gl_LIBRARY}
     )

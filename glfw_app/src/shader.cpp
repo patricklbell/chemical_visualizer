@@ -170,7 +170,7 @@ void loadShader(const std::string &path, ShaderType type) {
             return;
         default:
 #if DEBUG
-            std::cerr << "Unhandled shader type in loadShader"
+            std::cerr << "Unhandled shader type in loadShader";
 #endif
             return;
     }
