@@ -272,7 +272,14 @@ void drawGui(Camera &camera, Entities &entities){
 
         ImGui::SetCursorPosY(window_height - ImGui::GetTextLineHeightWithSpacing()*2);
         ImGui::Text("%.3f ms/f, %.1f FPS", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        if(mode != UiMode::NONE) ImGui::Text("Viewing file %s.", loaded_file_path.c_str());
+        std::string displayed_file_path;
+        if (loaded_file_path.size() > 16) {
+            displayed_file_path = loaded_file_path.substr(0, 4) + ".." + loaded_file_path.substr(loaded_file_path.size() - 12, 12);
+        }
+        else {
+            displayed_file_path = loaded_file_path;
+        }
+        if(mode != UiMode::NONE) ImGui::Text("Viewing file %s", displayed_file_path.c_str());
     }
     ImGui::End();
 
