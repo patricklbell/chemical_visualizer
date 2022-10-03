@@ -191,6 +191,9 @@ void drawGui(Camera &camera, Entities &entities){
         case UiMode::PDB:
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetTextLineHeightWithSpacing() * 0.5);
             if (ImGui::CollapsingHeader("Pdb Options", ImGuiTreeNodeFlags_DefaultOpen)) {
+                bool colors_changed = false;
+                bool entities_changed = false;
+
                 // @todo load model names from pdb
                 if (pdbfile.models.size() > 1) {
                     std::string model_name = std::to_string(pdbfile.models[selected_pdb_model_serial].serial);
@@ -219,15 +222,45 @@ void drawGui(Camera &camera, Entities &entities){
                         ImGui::EndCombo();
                     }
                 }
-                bool change_occured = false;
-                change_occured |= ImGui::Checkbox("Heterogen Molecules", &pdbfile_settings.draw_hetero_atoms);
-                change_occured |= ImGui::Checkbox("Water Molecules", &pdbfile_settings.draw_water_atoms);
-                change_occured |= ImGui::Checkbox("Residue Molecules", &pdbfile_settings.draw_residue_atoms);
-                change_occured |= ImGui::Checkbox("Residue Ribbon", &pdbfile_settings.draw_residue_ribbons);
+                entities_changed |= ImGui::Checkbox("Heterogen Molecules", &pdbfile_settings.draw_hetero_atoms);
+                entities_changed |= ImGui::Checkbox("Water Molecules", &pdbfile_settings.draw_water_atoms);
+                entities_changed |= ImGui::Checkbox("Residue Molecules", &pdbfile_settings.draw_residue_atoms);
+                entities_changed |= ImGui::Checkbox("Residue Ribbon", &pdbfile_settings.draw_residue_ribbons);
 
-                if (change_occured) {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetTextLineHeightWithSpacing() * 0.5);
+                if (ImGui::CollapsingHeader("Color Options")) {
+                    const std::string color_modes[PdbResidueColorMode::NUM_MODES] = { "Chain", "Secondary", "Amino Acids" };
+                    std::string mode_name = color_modes[(int)pdbfile_settings.residue_color_mode];
+
+                    ImGui::Text("Residue Coloring");
+                    ImGui::SetNextItemWidth(button_size.x);
+                    if (ImGui::BeginCombo("##residue-color-combo", mode_name.c_str())) {
+                        for(int i = 0; i < (int)PdbResidueColorMode::NUM_MODES; ++i) {
+                            bool is_selected = ((int)pdbfile_settings.residue_color_mode == i);
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+
+                            if (ImGui::Selectable(color_modes[i].c_str(), is_selected)) {
+                                pdbfile_settings.residue_color_mode = (PdbResidueColorMode)i;
+                                colors_changed = true;
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+
+                    ImGui::Text("Transparency");
+                    if (pdbfile_settings.draw_hetero_atoms   ) colors_changed |= ImGui::SliderFloat("Heterogen",    &pdbfile_settings.hetero_atoms_alpha   , 0.0f, 1.0f, "%.2f");
+                    if (pdbfile_settings.draw_water_atoms    ) colors_changed |= ImGui::SliderFloat("Water",        &pdbfile_settings.water_atoms_alpha    , 0.0f, 1.0f, "%.2f");
+                    if (pdbfile_settings.draw_residue_atoms  ) colors_changed |= ImGui::SliderFloat("Residue",      &pdbfile_settings.residue_atoms_alpha  , 0.0f, 1.0f, "%.2f");
+                    if (pdbfile_settings.draw_residue_ribbons) colors_changed |= ImGui::SliderFloat("Ribbon",       &pdbfile_settings.residue_ribbons_alpha, 0.0f, 1.0f, "%.2f");
+                }
+
+                if (entities_changed) {
                     entities.clear();
-                    createEntitiesFromPdbModel(entities, pdbfile.models[0], pdbfile_settings, camera);
+                    createEntitiesFromPdbModel(entities, pdbfile.models[selected_pdb_model_serial], pdbfile_settings, camera);
+                }
+                if (colors_changed) {
+                    updateEntityColorsFromPdbModel(entities, pdbfile.models[selected_pdb_model_serial], pdbfile_settings);
                 }
             }
             break;

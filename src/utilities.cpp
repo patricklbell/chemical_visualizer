@@ -355,7 +355,7 @@ glm::vec3 hsvToRgb(const glm::vec3 &hsv) {
 
 glm::vec3 randomSaturatedColor(unsigned int seed) {
     srand(seed * 87178291199); // Multiply by prime to offset seeds that are close together, eg 'A', 'B' ...
-    return hsvToRgb(glm::vec3((double)rand() / (double)RAND_MAX, 0.3, 0.99));
+    return hsvToRgb(glm::vec3((double)rand() / (double)RAND_MAX, 0.5, 0.99));
 }
 
 // http://www.paulbourke.net/miscellaneous/interpolation

@@ -29,19 +29,23 @@ glm::vec4 getColorFromSymbol(std::string symbol) {
     else                                        return glm::vec4(color_1_lu->second / 255.f, 1.0);
 }
 
-void createAtomEntity(const glm::vec3& pos, const glm::vec4& col, Entities& entities, float radius = sphere_r) {
+int createAtomEntity(const glm::vec3& pos, const glm::vec4& col, Entities& entities, float radius = sphere_r) {
+    int id = entities.instanced_entities.size();
     auto& m_e = entities.instanced_entities.emplace_back();
 
     m_e.albedo = col;
     m_e.instance_mesh = InstancedMeshType::SPHERE;
     m_e.scale = glm::mat3(radius);
     m_e.position = pos;
+
+    return id;
 }
 
-void createCylinderEntity(const glm::vec3& pos_1, const glm::vec3& pos_2, const glm::vec4& col, Entities& entities, float radius = cylinder_r) {
+int createCylinderEntity(const glm::vec3& pos_1, const glm::vec3& pos_2, const glm::vec4& col, Entities& entities, float radius = cylinder_r) {
     auto delta = pos_2 - pos_1;
     auto distance = glm::length(delta);
 
+    int id = entities.instanced_entities.size();
     auto& e = entities.instanced_entities.emplace_back();
     e.instance_mesh = InstancedMeshType::CYLINDER;
     scaleMat3(e.scale, glm::vec3(distance, radius, radius));
@@ -49,13 +53,17 @@ void createCylinderEntity(const glm::vec3& pos_1, const glm::vec3& pos_2, const 
     e.position = pos_1;
     e.albedo = col;
     e.rotation = quatAlignAxisToDirection(glm::vec3(1, 0, 0), delta);
+
+    return id;
 }
 
-void createSingleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+int createSingleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
     auto delta = pos_2 - pos_1;
     auto distance = glm::length(delta);
 
+    int id;
     for (int i = 0; i < 2; ++i) {
+        id = entities.instanced_entities.size();
         auto& e = entities.instanced_entities.emplace_back();
         e.instance_mesh = InstancedMeshType::CYLINDER;
         scaleMat3(e.scale, glm::vec3(distance / 2.0, radius, radius));
@@ -71,6 +79,7 @@ void createSingleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, co
             e.rotation = quatAlignAxisToDirection(glm::vec3(1, 0, 0), -delta);
         }
     }
+    return id;
 }
 
 void createDebugCartesian(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, Entities& entities, float r = cylinder_r) {
@@ -80,24 +89,28 @@ void createDebugCartesian(const glm::vec3& p, const glm::vec3& a, const glm::vec
     createCylinderEntity(p, p + c, glm::vec4(0, 0, 1, 0.5), entities, r);
 }
 
-void createDoubleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+int createDoubleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
     auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    int id;
     for (int j = 0; j < 2; ++j) {
         auto offset_1 = pos_1 + bond_gap_r * v_offset;
         auto offset_2 = pos_2 + bond_gap_r * v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
+        id = createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
         v_offset *= -1.0;
     }
+    return id;
 }
 
-void createTripleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
+int createTripleBondEntities(const glm::vec3& pos_1, const glm::vec4& col_1, const glm::vec3& pos_2, const glm::vec4& col_2, Entities& entities, float radius = cylinder_r) {
     auto v_offset = anyPerpendicular(pos_2 - pos_1);
+    int id;
     for (int j = 0; j < 3; ++j) {
         auto offset_1 = pos_1 + bond_gap_r * v_offset;
         auto offset_2 = pos_2 + bond_gap_r * v_offset;
-        createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
+        id = createSingleBondEntities(offset_1, col_1, offset_2, col_2, entities, radius / 2.0);
         v_offset = v_offset * glm::angleAxis((float)(2.0 / 3.0 * PI), glm::normalize(pos_2 - pos_1));
     }
+    return id;
 }
 
 //
@@ -1010,6 +1023,142 @@ void createPdbModelMeshes(PdbModel &model) {
     }
 }
 
+// Way of updating entities in-place, definitely needs work @todo make this cleaner
+void updateEntityColorsFromPdbModel(Entities& entities, PdbModel& model, PdbDrawSettings& settings) {
+    for (const auto& p : model.connections) {
+        auto& b = p.second;
+        auto& type = b.type;
+
+        auto atom_1_lu = model.atoms.find(b.atom_1_id);
+        if (atom_1_lu == model.atoms.end()) continue;
+        auto atom_1 = atom_1_lu->second;
+        auto atom_2_lu = model.atoms.find(b.atom_2_id);
+        if (atom_2_lu == model.atoms.end()) continue;
+        auto atom_2 = atom_2_lu->second;
+
+        auto color_1 = getColorFromSymbol(atom_1.symbol);
+        auto color_2 = getColorFromSymbol(atom_2.symbol);
+
+        bool is_heterogen_bond = atom_1.is_heterogen && atom_2.is_heterogen;
+
+        if (is_heterogen_bond) {
+            if (!settings.draw_hetero_atoms) continue;
+            color_1.w = settings.hetero_atoms_alpha;
+            color_2.w = settings.hetero_atoms_alpha;
+        }
+        else {
+            if (!settings.draw_residue_atoms) continue;
+            color_1.w = settings.residue_atoms_alpha;
+            color_2.w = settings.residue_atoms_alpha;
+        }
+
+        if (b.entity_id != -1) {
+            int num_entities = 0;
+            switch (type) {
+                case PdbConnectionType::SINGLE:
+                case PdbConnectionType::SINGLE_REDUNDANT:
+                {
+                    num_entities = 2;
+                    break;
+                }
+                case PdbConnectionType::DOUBLE:
+                case PdbConnectionType::DOUBLE_REDUNDANT:
+                {
+                    num_entities = 4;
+                    break;
+                }
+                case PdbConnectionType::TRIPLE:
+                case PdbConnectionType::TRIPLE_REDUNDANT:
+                {
+                    num_entities = 6;
+                    break;
+                }
+            }
+
+            bool is_color1 = false;
+            for (int id = b.entity_id; id > b.entity_id - num_entities && id >= 0 && id < entities.instanced_entities.size(); --id) {
+                if (is_color1) entities.instanced_entities[id].albedo = color_1;
+                else           entities.instanced_entities[id].albedo = color_2;
+                is_color1 = !is_color1;
+            }
+        }
+    }
+
+    for (auto& p : model.atoms) {
+        auto& atom = p.second;
+        if (atom.entity_id < 0 || atom.entity_id > entities.instanced_entities.size()) continue;
+
+        auto color = getColorFromSymbol(atom.symbol);
+        if (!strcmp(atom.res_name, "HOH")) {
+            if (!settings.draw_water_atoms) continue;
+            color.w = settings.water_atoms_alpha;
+        }
+        else if (atom.is_heterogen) {
+            if (!settings.draw_hetero_atoms) continue;
+            color.w = settings.hetero_atoms_alpha;
+        }
+        else {
+            if (!settings.draw_residue_atoms) continue;
+            color.w = settings.residue_atoms_alpha;
+        }
+
+        entities.instanced_entities[atom.entity_id].albedo = color;
+    }
+
+    if (settings.draw_residue_ribbons) {
+        for (auto& p : model.chains) {
+            auto& chain = p.second;
+
+            auto chain_color = glm::vec4(randomSaturatedColor((unsigned int)chain.chain_id), 1.0);
+            for (auto& r : chain.residues) {
+                if (r->entity_id < 0 || r->entity_id > entities.mesh_entities.size()) continue;
+
+                auto& m_e = entities.mesh_entities[r->entity_id];
+                switch (settings.residue_color_mode)
+                {
+                case PdbResidueColorMode::SECONDARY:
+                {
+                    switch (r->type) {
+                    case PdbResidueType::COIL:
+                    {
+                        m_e.albedo = coil_color;
+                        break;
+                    }
+                    case PdbResidueType::HELIX:
+                    {
+                        m_e.albedo = helix_color;
+                        break;
+                    }
+                    case PdbResidueType::STRAND:
+                    {
+                        m_e.albedo = strand_color;
+                        break;
+                    }
+                    }
+                    break;
+                }
+                case PdbResidueColorMode::CHAIN:
+                {
+                    m_e.albedo = chain_color;
+                    break;
+                }
+                case PdbResidueColorMode::AMINO_ACID:
+                {
+                    m_e.albedo = getColorFromResidueName(r->res_name);
+                    break;
+                }
+                default:
+                {
+                    fprintf(stderr, "unknown residue color mode\n");
+                    break;
+                }
+                }
+                m_e.albedo.w = settings.residue_ribbons_alpha;
+            }
+        }
+    }
+}
+
 void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSettings &settings, Camera &camera) {
     static const float relative_cylinder_size = 0.10;
     static const float relative_sphere_size   = 0.15;
@@ -1033,9 +1182,9 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
     float calc_cylinder_r = glm::max(avg_bond_length*relative_cylinder_size, 0.1f);
     float calc_sphere_r   = glm::max(avg_bond_length*relative_sphere_size, 0.2f);
 
-    for(const auto &p : model.connections) {
+    for(auto &p : model.connections) {
         auto &b = p.second;
-        auto type = b.type;
+        auto &type = b.type;
 
         auto atom_1_lu = model.atoms.find(b.atom_1_id);
         if(atom_1_lu == model.atoms.end()) continue;
@@ -1064,20 +1213,20 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
             case PdbConnectionType::SINGLE:
             case PdbConnectionType::SINGLE_REDUNDANT:
             {
-                createSingleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
+                b.entity_id = createSingleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
                 break;
             }
             case PdbConnectionType::DOUBLE:
             case PdbConnectionType::DOUBLE_REDUNDANT:
             {
 
-                createDoubleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
+                b.entity_id = createDoubleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
                 break;
             }
             case PdbConnectionType::TRIPLE:
             case PdbConnectionType::TRIPLE_REDUNDANT:
             {
-                createTripleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
+                b.entity_id = createTripleBondEntities(atom_1.position, color_1, atom_2.position, color_2, entities, calc_cylinder_r);
                 break;
             }
             default:
@@ -1086,7 +1235,7 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
         }
     }
     auto center = glm::vec3(0.0);
-    for(const auto &p : model.atoms) {
+    for(auto &p : model.atoms) {
         auto &atom = p.second;
         center += atom.position;
 
@@ -1102,7 +1251,7 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
             color.w = settings.residue_atoms_alpha;
         }
 
-        createAtomEntity(atom.position, color, entities, calc_sphere_r);
+        atom.entity_id = createAtomEntity(atom.position, color, entities, calc_sphere_r);
     }
 
     // There is probably a faster algorithm for determining a bounding sphere but for now
@@ -1130,6 +1279,7 @@ void createEntitiesFromPdbModel(Entities &entities, PdbModel &model, PdbDrawSett
             for (auto& r : chain.residues) {
                 if (!r->mesh_generated) continue;
 
+                r->entity_id = entities.mesh_entities.size();
                 auto &m_e = entities.mesh_entities.emplace_back();
 
                 m_e.mesh = &r->mesh;

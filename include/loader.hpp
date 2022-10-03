@@ -80,6 +80,11 @@ struct PdbAtom {
     glm::fvec3 position; // Orthogonal coordinates in Angstroms
     
     char symbol[3] = "";
+
+    // 
+    // Used for rendering 
+    //
+    int entity_id = -1;
 };
 
 enum class PdbConnectionType : unsigned int {
@@ -96,6 +101,11 @@ struct PdbConnection {
     int atom_1_id;
     int atom_2_id;
     PdbConnectionType type;
+
+    // 
+    // Used for rendering 
+    //
+    int entity_id = -1; // Id of last entity
 };
 
 enum class PdbHelixType : unsigned int {
@@ -191,6 +201,7 @@ struct PdbResidue {
     // 
     // Used for rendering 
     //
+    int entity_id = -1;
     bool mesh_generated = false;
     Mesh mesh; // The first residue of the chain owns the mesh
 };
@@ -239,10 +250,11 @@ struct PdbDictionary {
     std::unordered_map<std::string, std::unordered_map<std::string, PdbDictionaryConnect>> residues; 
 };
 
-enum class PdbResidueColorMode {
-    CHAIN     ,
+enum PdbResidueColorMode : int {
+    CHAIN = 0,
+    SECONDARY,
     AMINO_ACID,
-    SECONDARY ,
+    NUM_MODES,
 };
 
 struct PdbDrawSettings {
@@ -272,6 +284,7 @@ void createDebugCartesian(const glm::vec3 &p, const glm::vec3 &a, const glm::vec
 
 void loadPdbDictionaryFile(PdbDictionary &dict, std::string_view path);
 void loadPdbFile(PdbFile &data, std::string path, PdbDictionary *dict=nullptr);
+void updateEntityColorsFromPdbModel(Entities& entities, PdbModel& model, PdbDrawSettings& settings);
 void createPdbModelMeshes(PdbModel& model);
 void createEntitiesFromPdbModel(Entities& entities, PdbModel& model, PdbDrawSettings& settings, Camera& camera);
 
