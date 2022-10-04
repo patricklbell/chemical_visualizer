@@ -3,7 +3,7 @@ View PDB (Protein Data Bank) and mol files. This is the emscripten branch, which
 See the result at https://patricklbell.github.io/chemical_visualizer/.
 
 ## Building
-The build system is modified from https://github.com/lukka/CppOpenGLWebAssemblyCMake and requires Docker. Note that while the build system supports building natively, this is untested (won't work) since main already builds natively.
+The Emscripten build system is modified from https://github.com/lukka/CppOpenGLWebAssemblyCMake and requires Docker. Native building is also supported, see instructions below.
 
 ### With VSCode using Docker
 
