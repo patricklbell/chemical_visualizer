@@ -1,5 +1,6 @@
 # Chemical Visualizer
 View PDB (Protein Data Bank) and MOL files. This app is also built to webassembly on the [emscripten branch](https://github.com/patricklbell/chemical_visualizer/tree/emscripten).
+For a brief explanation of how it works check out the acommpanying [blog post](https://patricklbell.xyz/posts/visualising-proteins).
 
 ## Haemoglobin ([PDB](https://www.rcsb.org/structure/4n7n))
 ![Haemoglobin Ribbon Diagram Chain Coloring](https://github.com/patricklbell/chemical_visualizer/blob/main/data/screenshots/haemoglobin_chains.png?raw=true)
