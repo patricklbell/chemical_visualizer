@@ -161,7 +161,7 @@ const App = () => {
       autoSaveId="viewer"
       direction="horizontal"
     >
-      <Panel defaultSize={75} minSize={50} className="flex flex-col border-r border-back1">
+      <Panel defaultSize={70} minSize={50} className="flex flex-col border-r border-back1">
         <div className="flex flex-row justify-end pb-1 border-back1 border-b items-center content-center px-1">
           <Tooltip padding={5} placement={"right"}>
             <TooltipTrigger className="hidden lg:block my-auto pl-5" onClick={toggleDarkMode}>
