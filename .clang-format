@@ -1,7 +1,26 @@
 ﻿---
 BasedOnStyle: Google
-BreakBeforeBraces: Allman
-Language: Cpp
-UseTab: Never
-IndentWidth: 4
+BreakBeforeBraces: Attach
 
+SortIncludes: false
+AlignAfterOpenBracket: Align
+SpacesBeforeTrailingComments: 4
+AlignTrailingComments: true
+AlignConsecutiveMacros : true
+AlignConsecutiveAssignments: true
+PointerAlignment: Left
+
+AlwaysBreakAfterReturnType: None
+AlignConsecutiveDeclarations: false
+AllowShortIfStatementsOnASingleLine: false
+
+IndentWidth: 4
+UseTab: Never
+IndentCaseLabels: true
+IndentExternBlock: Indent
+IndentGotoLabels: false
+IndentWrappedFunctionNames: true
+NamespaceIndentation: All
+PenaltyIndentedWhitespace: 0
+
+ColumnLimit: 0

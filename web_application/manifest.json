@@ -1,8 +1,0 @@
-{
-  "short_name": "WASM_CHEM",
-  "name": "WebAssembly Chemical Visualizer",
-  "start_url": "wasm_app.html",
-  "display": "fullscreen",
-  "orientation": "portrait",
-  "scope": "/"
-}

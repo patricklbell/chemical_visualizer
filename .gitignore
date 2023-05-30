@@ -13,7 +13,6 @@
 *.vcxproj
 *.map
 *.wasm
-!gh-pages/wasm_app_emsdk.wasm
 *.wast
 build
 subrepos
@@ -24,3 +23,15 @@ buildjswasm
 .vs
 .ninja_log
 .ninja_deps
+.build
+
+# Editor directories and files
+.vscode/*
+.vs/*
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
