@@ -11,7 +11,7 @@ export const useWasm = (canvasRef) => {
       if (!canvasRef || globalThis?.Module) return;
 
       const fetchWasm = async () => {
-        fetch("cviz_wasm.wasm")
+        fetch("./wasm/cviz_wasm.wasm")
           .then((response) => response.arrayBuffer())
           .then((bytes) => {
             globalThis.Module = {
@@ -34,7 +34,7 @@ export const useWasm = (canvasRef) => {
               },
             };
 
-            setScript("cviz_wasm.js");
+            setScript("./wasm/cviz_wasm.js");
           });
       };
 

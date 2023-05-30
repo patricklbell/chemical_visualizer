@@ -14,7 +14,7 @@ const PdbStructure = ({viewer, refresh}) => {
         <AccordianPanel className="pl-4">
           {m?.chains.length ? 
             <div className="border-2 border-accent1 p-1 mt-[0.6rem] pt-[0.6rem] rounded-xl relative">
-              <span className="bg-back absolute left-3 top-[-1.0rem] px-1 text-accent font-semibold">Primary Structures</span>
+              <span className="bg-back absolute left-3 top-[-1.0rem] px-1 text-accent font-semibold">Primary <span className="hidden 2xl:inline-block">Structures</span></span>
               
               <Accordian>
                 <AccordianButton>Polypeptide Chains</AccordianButton>
@@ -45,7 +45,7 @@ const PdbStructure = ({viewer, refresh}) => {
         <AccordianPanel className="pl-4">
           {m?.sheets.length || m?.helices.length ? 
             <div className="border-2 border-bccent1 p-1 mt-[0.6rem] pt-[0.6rem] rounded-xl relative">
-              <span className="bg-back absolute left-3 top-[-1.0rem] px-1 text-bccent font-semibold">Secondary Structures</span>
+              <span className="bg-back absolute left-3 top-[-1.0rem] px-1 text-bccent font-semibold">Secondary <span className="hidden 2xl:inline-block">Structures</span></span>
               {m?.helices.length ?
               <Accordian>
                 <AccordianButton>Helices</AccordianButton>

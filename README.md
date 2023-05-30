@@ -4,13 +4,13 @@ natively and to the web. The web build has an accompanying [demo](https://patric
 For a brief explanation of how the protein diagrams are generated check out [this blog post](https://patricklbell.xyz/posts/visualising-proteins).
 
 ## Haemoglobin ([PDB](https://www.rcsb.org/structure/4n7n))
-![Haemoglobin Ribbon Diagram Chain Coloring](https://github.com/patricklbell/chemical_visualizer/blob/main/docs/screenshots/haemoglobin_chains.png?raw=true)
+![Haemoglobin Ribbon Diagram Chain Coloring](https://github.com/patricklbell/chemical_visualizer/blob/emscripten/docs/screenshots/haemoglobin_chains.png?raw=true)
 
 ## Immunoglobulin Antibody (IgG) ([PDB](https://www.rcsb.org/structure/1igt))
-![Immunoglobulin Atom Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/docs/screenshots/igg_atoms.png?raw=true)
+![Immunoglobulin Atom Diagram](https://github.com/patricklbell/chemical_visualizer/blob/emscripten/docs/screenshots/igg_atoms.png?raw=true)
 
 ## Caffeine ([MOL](https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:27732))
-![Caffeine Molecule Diagram](https://github.com/patricklbell/chemical_visualizer/blob/main/docs/screenshots/caffeine.png?raw=true)
+![Caffeine Molecule Diagram](https://github.com/patricklbell/chemical_visualizer/blob/emscripten/docs/screenshots/caffeine.png?raw=true)
 
 # Building
 Download the source and unzip or 

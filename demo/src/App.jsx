@@ -10,6 +10,7 @@ import { ReactComponent as DragClickIcon } from 'assets/DragClick.svg';
 import { ReactComponent as ZoomIcon } from 'assets/Zoom.svg';
 import { ReactComponent as DarkModeIcon } from 'assets/DarkMode.svg';
 import { ReactComponent as LightModeIcon } from 'assets/LightMode.svg';
+import { ReactComponent as MoreVertIcon } from 'assets/MoreVert.svg';
 
 import Throbber from "components/Throbber";
 import PrimaryButton from "components/PrimaryButton";
@@ -22,6 +23,20 @@ import MolStructure from "components/MolStructure";
 
 import { useWasm, useCameraType, useDrawSettings } from "hooks/useWasm";
 import { vec4 } from "utils/glmVector";
+
+const RightPanel = ({viewer, isProtein, refresh, viewerLoaded, setViewerLoaded, setLoadingMessage}) => {
+  return <div className={classnames("flex flex-col max-h-[100vh] flex-grow", {'z-10 opacity-10 pointer-events-none': !viewerLoaded})}>
+    <div className="py-2 px-5 flex flex-col flex-grow gap-2 overflow-y-auto">
+      <span className="text-center text-[1.2rem] font-semibold">Structure</span>
+      {isProtein ? <PdbStructure viewer={viewer} refresh={refresh} /> : <MolStructure viewer={viewer} refresh={refresh} />}
+    </div>
+
+    {isProtein &&
+    <div className="py-4 pt-2 px-5 flex flex-col gap-3 border-t border-back1">
+      <PdbSettings viewer={viewer} setLoaded={setViewerLoaded} setLoadingMessage={setLoadingMessage} />
+    </div>}
+  </div>
+}
 
 const App = () => {
   const { width: canvasWidth, height: canvasHeight, ref: canvasRef } = useResizeDetector();
@@ -48,6 +63,7 @@ const App = () => {
     "Ethanol": "examples/ethanol.mol",
   }
   const [isProtein, setIsProtein] = useState(false);
+  const [fullRightPanel, setFullRightPanel] = useState(false);
   const [viewerLoaded, setViewerLoaded] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Loading Viewer");
   const [selected, setSelected] = useState(Object.keys(examples)[0]);
@@ -146,9 +162,9 @@ const App = () => {
       direction="horizontal"
     >
       <Panel defaultSize={75} minSize={50} className="flex flex-col border-r border-back1">
-        <div className="flex flex-row justify-end pb-1 border-back1 border-b items-center content-center">
-          <Tooltip padding={5} placement={"right"} className="mr-auto">
-            <TooltipTrigger className="my-auto pl-5" onClick={toggleDarkMode}>
+        <div className="flex flex-row justify-end pb-1 border-back1 border-b items-center content-center px-1">
+          <Tooltip padding={5} placement={"right"}>
+            <TooltipTrigger className="hidden lg:block my-auto pl-5" onClick={toggleDarkMode}>
               <LightModeIcon className="w-6 h-6 block dark:hidden"/>
               <DarkModeIcon className="w-6 h-6 hidden dark:block"/>
             </TooltipTrigger>
@@ -164,9 +180,9 @@ const App = () => {
           </Tooltip>
 
           <div className="flex-grow flex flex-row justify-center items-stretch gap-5">
-            <span className="inline-flex items-center">Choose Example</span>
+            <span className="hidden lg:inline-flex items-center">Choose Example</span>
             <Combobox 
-              className="text-2xl text-center w-[20rem]"
+              className="text-sm lg:text-2xl text-center lg:w-[20rem]"
               inputClassName="font-bold"
               selected={openSelection}
               setSelected={setSelected}
@@ -177,7 +193,7 @@ const App = () => {
               onClick={() => {fileUploadRef.current.click()}}
               className="py-1 mt-1 rounded-lg bg-back text-left border border-back1 px-4"
             >
-              Open File
+              Open <span className="hidden lg:inline-block">File</span>
               <input 
                 onChange={(e) => {
                   const f = e.target.files[0];
@@ -251,7 +267,7 @@ const App = () => {
                 };
 
                 return <div className='flex flex-row items-center'>
-                    <span className='pr-4 w-1/3'>Camera Projection</span>
+                    <span className='pr-4 w-[33%] min-w-[33%]'>Camera Projection</span>
                     <Combobox 
                         optionClassName="z-10"
                         className="flex-grow"
@@ -274,7 +290,7 @@ const App = () => {
                 };
 
                 return <div className='flex flex-row items-center'>
-                    <span className='pr-4 w-1/3'>Draw Mode</span>
+                    <span className='pr-4 w-[33%] min-w-[33%]'>Shading</span>
                     <Combobox 
                         optionClassName="z-10"
                         className="flex-grow"
@@ -352,16 +368,21 @@ const App = () => {
               </TooltipContent>
             </Tooltip>
 
-            
+            <PrimaryButton 
+              onClick={() => setFullRightPanel(!fullRightPanel)}
+              className="lg:hidden rounded-full"
+            >
+              <MoreVertIcon className="w-10 h-10 p-2"/>
+            </PrimaryButton>
           </div>
           }
         </div>
       </Panel>
       
-      <PanelResizeHandle className="bg-back1 bg-opacity-10 w-3 flex hover:bg-opacity-20 hover:border-dashed">
+      <PanelResizeHandle className="hidden lg:flex bg-back1 bg-opacity-10 w-3 hover:bg-opacity-20 hover:border-dashed">
         <button onClick={() => togglePanel(rightPanel)} className="max-w-full py-1 my-auto scale-[220%] group">
           <ChevronRightIcon className={
-            classnames("w-[100%] transition-all", {
+            classnames("w-[100%] transition-transform", {
               "rotate-180": rightCollapsed,
               "group-hover:translate-x-[2px]": !rightCollapsed,
               "group-hover:-translate-x-[2px]": rightCollapsed,
@@ -370,19 +391,23 @@ const App = () => {
         </button>
       </PanelResizeHandle>
 
-      <Panel className="border-l border-back1 flex" defaultSize={25} minSize={15} collapsible={true} ref={rightPanel} onCollapse={setRightCollapsed}>
-        <div className={classnames("flex flex-col max-h-[100vh] flex-grow", {'z-10 opacity-10 pointer-events-none': !viewerLoaded})}>
-          <div className="py-2 px-5 flex flex-col flex-grow gap-2 overflow-y-auto">
-            <span className="text-center text-[1.2rem] font-semibold">Structure</span>
-            {isProtein ? <PdbStructure viewer={viewer} refresh={refresh} /> : <MolStructure viewer={viewer} refresh={refresh} />}
-          </div>
-
-          {isProtein &&
-          <div className="py-4 pt-2 px-5 flex flex-col gap-3 border-t border-back1">
-            <PdbSettings viewer={viewer} setLoaded={setViewerLoaded} setLoadingMessage={setLoadingMessage} />
-          </div>}
-        </div>
+      <Panel className="hidden lg:flex border-l border-back1" defaultSize={30} minSize={20} collapsible={true} ref={rightPanel} onCollapse={setRightCollapsed}>
+        <RightPanel viewer={viewer} isProtein={isProtein} refresh={refresh} viewerLoaded={viewerLoaded} setViewerLoaded={setViewerLoaded} setLoadingMessage={setLoadingMessage}/>
       </Panel>
+
+      <Modal 
+        isOpen={fullRightPanel}
+        setIsOpen={setFullRightPanel}
+        className="flex flex-col items-center bg-back z-10 border-back1 border-l p-0 text-fore fill-fore"
+      >
+        <RightPanel viewer={viewer} isProtein={isProtein} refresh={refresh} viewerLoaded={viewerLoaded} setViewerLoaded={setViewerLoaded} setLoadingMessage={setLoadingMessage}/>
+        <PrimaryButton
+          className="px-5 py-2 rounded-md mb-2 w-[10rem]"
+          onClick={() => setFullRightPanel(false)}
+        >
+          Close
+        </PrimaryButton>
+      </Modal>
     </PanelGroup>
   )
 }
