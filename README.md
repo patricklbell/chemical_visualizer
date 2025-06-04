@@ -1,7 +1,7 @@
 # Chemical Visualizer
 View PDB (Protein Data Bank) and MOL files. This app is built with CMake both 
-natively and to the web. The web build has an accompanying [demo](https://patricklbell.github.io/chemical_visualizer/). 
-For a brief explanation of how the protein diagrams are generated check out [this blog post](https://patricklbell.xyz/posts/visualising-proteins).
+natively and to the web. The web build has an accompanying [demo](https://patricklbell.github.io/chemical-visualizer/). 
+For a brief explanation of how the protein diagrams are generated check out [this blog post](https://patricklbell.xyz/article/visualising-proteins).
 
 ## Haemoglobin ([PDB](https://www.rcsb.org/structure/4n7n))
 ![Haemoglobin Ribbon Diagram Chain Coloring](https://github.com/patricklbell/chemical_visualizer/blob/emscripten/docs/screenshots/haemoglobin_chains.png?raw=true)
